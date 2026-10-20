@@ -164,7 +164,7 @@ book-reader/
 │  ├─ icon.png             app icon
 │  └─ installer.nsh        extra uninstaller steps
 ├─ vendor/djvu.js          DjVu.js: DjVu table of contents and fallback decoder
-├─ samples/                test books (not in the repository, see "Autotests")
+├─ samples/                optional real books for the tests (not in the repository)
 ├─ src/
 │  ├─ main/                Electron main process
 │  │  ├─ main.js           window, file reading, dialogs, state saving, app:// protocol
@@ -187,7 +187,12 @@ book-reader/
 └─ tools/
    ├─ build.js             installer build
    ├─ make-icon.js         icon drawing
-   ├─ autotest.js          autotests (starts the app + runs a scenario + takes screenshots)
+   ├─ run-tests.js         npm test: runs the scenarios and prints a summary
+   ├─ autotest.js          runs one scenario in the app (window, screenshots, results)
+   ├─ test-kit.js          helpers shared by the scenarios
+   ├─ test-books.json      the books the tests use, by role
+   ├─ make-fixtures.js     npm run fixtures: generates the test books
+   ├─ fixtures/            generated test books
    └─ scenarios/           autotest scenarios
 ```
 
@@ -200,27 +205,60 @@ The `language` autotest checks that the dictionaries have the same keys and plac
 
 ## Autotests
 
-Scenarios in `tools/scenarios/` start the app with a separate temporary data folder
-(your settings are not touched), perform actions and save screenshots to the given folder.
+```bash
+npm test
+```
 
-Most scenarios need books in the `samples/` folder. The books are not part of the repository
-(they are copyrighted), so put your own files there; the scenarios refer to specific file names
-that are written inside each scenario.
+runs every scenario in `tools/scenarios/` one after another and prints a summary; the exit code is 1
+if anything failed. Each scenario starts the app with its own temporary data folder (your settings
+and backups are not touched), performs actions the way a user does and checks the result.
+Logs and screenshots go to `test-results/<scenario>/`.
 
 ```bash
-npx electron tools/autotest.js tools/scenarios/stage6.scenario.js out/stage6
+npm test -- epub reading-settings
+```
+
+runs only the named scenarios, and `npm test -- --lang en` runs them with the English interface
+(the expected texts come from `en.json` / `uk.json`, not from the tests).
+
+### Test books
+
+The books the tests use are listed by role in `tools/test-books.json`:
+
+- **generated books** in `tools/fixtures/` (FB2, EPUB 2 and 3, PDF): made by `npm run fixtures`
+  from our own word lists, so they have no copyright and are part of the repository;
+  `tools/fixtures/facts.json` records what they contain (chapters, footnotes, how often the search word occurs);
+- **optional real books** in `samples/` (not in the repository): DjVu, which can't be generated without
+  DjVuLibre, and a scanned PDF. Checks that need a missing one are reported as skipped.
+  `CHYTALKA_SAMPLES_DIR` points to another folder with these books.
+
+Some older scenarios still open the books in `samples/` directly; they are being moved to the test kit.
+
+### Writing scenarios
+
+A scenario is a module exporting `async (ctx) => { … }`. Besides `exec` (runs code in the window),
+`waitFor`, `wait`, `shot` and `resize`, `ctx` has the helpers from `tools/test-kit.js`:
+`check(name, ok, detail)`, `skip(reason)`, `open(role)`, `has(role)`, `t(key, params)`, `press(key, modifiers)`,
+`tocItem(index)`, `pagesReady()`, `location()` and `facts`.
+
+`module.exports.continues = 'name'` makes a scenario run right after another one on the state it saved
+(restart checks); `module.exports.packaged = true` tests the built app (`npm run dist` first).
+A single scenario can also be started directly:
+
+```bash
+npx electron tools/autotest.js tools/scenarios/epub.scenario.js test-results/epub
 ```
 
 | Scenario | What it checks |
 |---|---|
-| `stage1` | tabs, themes, formats (+ `restore`: restoring after a restart) |
-| `stage2`, `fb2-edge` | FB2: parsing, footnotes, contents; damaged files, windows-1251, `.fb2.zip` |
-| `stage3` | scroll / pages, keeping the position (+ `stage3-restore`) |
-| `stage4`, `formatting` | EPUB; italic, bold, links |
-| `stage5`, `djvu-quick`, `dark-pages` | PDF and DjVu, speed, dark theme |
-| `stage6` | reading settings panel and hotkeys |
+| `tabs-themes` (+ `-restore`) | a tab for every format, themes; tabs, active tab and theme after a restart |
+| `fb2`, `fb2-edge` | FB2: parsing, images, contents, footnotes; damaged files, windows-1251, `.fb2.zip` |
+| `epub`, `formatting` | EPUB 2 and 3: parsing, contents, footnotes, unsafe markup; italic, bold, links |
+| `pdf-djvu`, `djvu-quick`, `dark-pages` | PDF and DjVu: drawing, contents, text layer, spreads, zoom, speed, dark theme |
+| `reading-modes` (+ `-restore`) | scroll and paged modes, keeping the position across mode, window and font changes and a restart |
+| `reading-settings` | the reading settings panel and the font size hotkeys |
 | `resize` | text and images fit windows of different sizes |
-| `search`, `bookmarks` (+ `bookmarks-restore`), `chapter`, `toc-jump` | search, bookmarks, current chapter, jumping through the contents |
+| `search`, `bookmarks` (+ `-restore`), `chapter`, `toc-jump` | search, bookmarks, current chapter, jumping through the contents |
 | `reading-time` | time to the end of the chapter, reading speed adaptation |
 | `close-tabs` | closing tabs of every format (close button, middle button, Ctrl+W) with real mouse clicks |
 | `data` | the app panel, reset settings, clear history, "Reset everything", the uninstall button in the dev version |
@@ -228,13 +266,10 @@ npx electron tools/autotest.js tools/scenarios/stage6.scenario.js out/stage6
 | `library` | library (search, sorting, "Find file…", "Forget"), automatic backups and their rotation |
 | `language` | switching the language without a restart, no Ukrainian text in the English UI, matching keys in `en.json` and `uk.json` |
 | `brightness` | brightness slider and hotkeys, 30–100% limits, only the book area is dimmed |
-| `packaged` | the built app (`AUTOTEST_APP=dist/win-unpacked/resources/app.asar`) |
+| `packaged` | the built app opens every format from `app.asar` |
 
-Autotests write backups to a test folder instead of the real Documents (`CHYTALKA_BACKUP_DIR`)
-and treat Ukrainian as the system language (`CHYTALKA_SYSTEM_LANG`), since they check Ukrainian texts.
-
-Scenarios with the `restore` suffix run after the main one with `AUTOTEST_KEEP_STATE=1`
-and the same output folder; this checks that the state survives a restart.
+The tests write backups to a test folder instead of the real Documents (`CHYTALKA_BACKUP_DIR`)
+and set the "system language" to the test language (`CHYTALKA_SYSTEM_LANG`), so the results don't depend on the machine.
 
 ## Libraries and licenses
 
