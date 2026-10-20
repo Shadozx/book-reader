@@ -10,7 +10,7 @@ module.exports = async ({ root, exec, waitFor, wait, shot, log }) => {
     log(`${ok ? 'OK  ' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
   };
   const key = (code, k) => exec(`window.dispatchEvent(new KeyboardEvent('keydown', { key: '${k}', code: '${code}', ctrlKey: true, bubbles: true }))`);
-  const clickSeg = (value) => exec(`document.querySelector('.settings-popover .seg button[data-value="${value}"]').click()`);
+  const clickSeg = (value) => exec(`document.querySelector('.app-popover .seg button[data-value="${value}"]').click()`);
 
   // 1) Both dictionaries have the same keys and the same kind of values
   const dicts = Object.fromEntries(['uk', 'en'].map((l) => [l, JSON.parse(fs.readFileSync(path.join(root, 'src/renderer/locales', `${l}.json`), 'utf8'))]));
@@ -31,14 +31,14 @@ module.exports = async ({ root, exec, waitFor, wait, shot, log }) => {
   await waitFor(`app.activeTab?.viewer`, 30000);
   await exec(`app.toggleBookmark()`);
 
-  // 3) Switch to English in the settings panel
-  await exec(`document.getElementById('btn-settings').click()`);
+  // 3) Switch to English in the app panel (the gear button)
+  await exec(`document.getElementById('btn-app').click()`);
   await clickSeg('en');
   await waitFor(`document.documentElement.lang === 'en'`, 5000);
   await wait(300);
   check('мова перемкнулась без перезапуску', await exec(`app.store.settings.language === 'en' && document.title.endsWith('Chytalka')`), await exec(`document.title`));
-  check('панель налаштувань лишилась відкритою й перекладена', await exec(`!document.querySelector('.settings-popover').hidden && document.querySelector('.settings-popover h3').textContent === 'Language'`));
-  check('вибрано English', await exec(`document.querySelector('.settings-popover .seg button[data-value="en"]').classList.contains('on')`));
+  check('панель «Програма» лишилась відкритою й перекладена', await exec(`!document.querySelector('.app-popover').hidden && document.querySelector('.app-popover h3').textContent === 'Language'`));
+  check('вибрано English', await exec(`document.querySelector('.app-popover .seg button[data-value="en"]').classList.contains('on')`));
   await shot('language-01-settings-en');
 
   // Every visible and hidden UI text, tooltip and placeholder, except the book itself,
@@ -63,7 +63,7 @@ module.exports = async ({ root, exec, waitFor, wait, shot, log }) => {
   let left = await exec(leftovers);
   check('у вікні з книгою немає українських текстів', left.length === 0, left.join(' | '));
 
-  await exec(`document.getElementById('btn-settings').click()`);
+  await exec(`document.getElementById('btn-app').click()`);
   await exec(`app.openLibrary()`);
   await wait(500);
   left = await exec(leftovers);

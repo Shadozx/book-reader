@@ -1,5 +1,6 @@
 {
   "app.name": "Chytalka",
+  "app.panel": "Application",
 
   "toolbar.library": "Library — books the app remembers (Ctrl+L)",
   "toolbar.open": "Open a book (Ctrl+O)",
@@ -15,7 +16,8 @@
   "toolbar.modePaged": "Pages",
   "toolbar.bookmarkAdd": "Add bookmark (Ctrl+D)",
   "toolbar.bookmarkRemove": "Remove bookmark (Ctrl+D)",
-  "toolbar.settings": "Text settings",
+  "toolbar.settings": "Reading settings",
+  "toolbar.app": "App: language, data, uninstall",
   "toolbar.theme": "Change theme",
   "toolbar.themeState": "Theme: {current} (click for {next})",
   "theme.light": "light",
@@ -76,7 +78,7 @@
   "toast.zoomAuto": "Zoom: auto",
   "toast.brightness": "Brightness: {percent}%",
 
-  "settings.title": "Settings",
+  "settings.title": "Reading settings",
   "settings.language": "Language",
   "settings.languageAuto": "System",
   "settings.theme": "Theme",
@@ -123,6 +125,7 @@
   "data.openFolder": "Open the data folder",
   "data.app": "Application",
   "data.uninstall": "Uninstall the app…",
+  "data.version": "Version {version}",
   "data.settingsReset": "Settings reset",
   "data.clearTitle": "Clear history",
   "data.clearMessage": "Clear the reading history?",

@@ -1,4 +1,6 @@
-// Settings panel (the "T" button): theme, mode, font and spacing, PDF/DjVu options.
+// Two popover panels:
+//  - reading settings (the "T" button): theme, brightness, mode, font and spacing, PDF/DjVu options;
+//  - the app panel (the gear button in the tab bar): language, data, uninstall.
 // Changes apply immediately; sliders update the book at most once per frame.
 
 import { h } from './util.js';
@@ -42,30 +44,15 @@ export const BRIGHTNESS = { key: 'brightness', min: 0.3, max: 1, step: 0.05, for
 // What the "Reset" button resets (theme and mode stay as they are)
 const TEXT_KEYS = ['fontFamily', 'fontSize', 'lineHeight', 'margin', 'maxWidth', 'indent', 'paraSpacing', 'align'];
 
-export function createSettingsPanel({ getSettings, update, defaults, extra = null }) {
-  const controls = {};
-
-  // Update the book at most once per frame
-  let pending = null;
-  let frame = 0;
-  const schedule = (patch) => {
-    pending = { ...pending, ...patch };
-    if (frame) return;
-    frame = requestAnimationFrame(() => {
-      frame = 0;
-      const p = pending;
-      pending = null;
-      update(p);
-    });
-  };
-
+// Segmented buttons and checkboxes bound to a settings key; each one registers its sync() in controls
+function controlBuilders(controls, update, refresh) {
   const segmented = (key, options) => {
     const group = h('div', { class: 'seg', role: 'radiogroup' });
     for (const [value, label] of options) {
       const btn = h('button', { type: 'button', 'data-value': value, role: 'radio' }, label);
       btn.addEventListener('click', () => {
         update({ [key]: value });
-        sync();
+        refresh();
       });
       group.append(btn);
     }
@@ -86,6 +73,48 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
     input.addEventListener('change', () => update({ [key]: input.checked }));
     controls[key] = { sync: (v) => { input.checked = !!v; } };
     return h('label', { class: 'check' }, input, h('span', {}, label));
+  };
+
+  return { segmented, checkbox };
+}
+
+function panelApi(el, controls, getSettings, onOpen = () => {}) {
+  function sync() {
+    const s = getSettings();
+    for (const [key, control] of Object.entries(controls)) control.sync(s[key]);
+  }
+  return {
+    el,
+    sync,
+    get open() {
+      return !el.hidden;
+    },
+    setOpen(open, options = {}) {
+      el.hidden = !open;
+      if (open) {
+        sync();
+        onOpen(options);
+      }
+    },
+  };
+}
+
+export function createSettingsPanel({ getSettings, update, defaults }) {
+  const controls = {};
+  const { segmented, checkbox } = controlBuilders(controls, update, () => panel.sync());
+
+  // Update the book at most once per frame
+  let pending = null;
+  let frame = 0;
+  const schedule = (patch) => {
+    pending = { ...pending, ...patch };
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      const p = pending;
+      pending = null;
+      update(p);
+    });
   };
 
   const slider = (spec) => {
@@ -133,7 +162,7 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
   const resetBtn = h('button', { type: 'button', class: 'reset-btn' }, t('settings.resetText'));
   resetBtn.addEventListener('click', () => {
     update(Object.fromEntries(TEXT_KEYS.map((k) => [k, defaults[k]])));
-    sync();
+    panel.sync();
   });
 
   const textSection = h('section', { class: 'settings-section' },
@@ -145,10 +174,8 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
       segmented('align', [['justify', t('settings.alignJustify')], ['left', t('settings.alignLeft')]])),
   );
 
-  const el = h('div', { class: 'settings-popover', hidden: true, role: 'dialog', 'aria-label': t('settings.title') },
+  const el = h('div', { class: 'settings-popover reading-popover', hidden: true, role: 'dialog', 'aria-label': t('settings.title') },
     h('section', { class: 'settings-section' },
-      h('h3', {}, t('settings.language')),
-      segmented('language', [['auto', t('settings.languageAuto')], ...LANGUAGES]),
       h('h3', {}, t('settings.theme')),
       segmented('theme', [['light', t('settings.themeLight')], ['sepia', t('settings.themeSepia')], ['dark', t('settings.themeDark')]]),
       slider(BRIGHTNESS),
@@ -162,26 +189,25 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
       checkbox('invertDark', t('settings.invertDark')),
     ),
     resetBtn,
-    extra,
   );
 
-  function sync() {
-    const s = getSettings();
-    for (const [key, control] of Object.entries(controls)) control.sync(s[key]);
-  }
+  const panel = panelApi(el, controls, getSettings, ({ textApplies = true }) => {
+    textSection.classList.toggle('dimmed', !textApplies);
+  });
+  return panel;
+}
 
-  return {
-    el,
-    sync,
-    get open() {
-      return !el.hidden;
-    },
-    setOpen(open, { textApplies = true } = {}) {
-      el.hidden = !open;
-      if (open) {
-        sync();
-        textSection.classList.toggle('dimmed', !textApplies);
-      }
-    },
-  };
+// The app panel: language plus the sections passed in extra (data, uninstall)
+export function createAppPanel({ getSettings, update, extra = null }) {
+  const controls = {};
+  const { segmented } = controlBuilders(controls, update, () => panel.sync());
+  const el = h('div', { class: 'settings-popover app-popover', hidden: true, role: 'dialog', 'aria-label': t('app.panel') },
+    h('section', { class: 'settings-section' },
+      h('h3', {}, t('settings.language')),
+      segmented('language', [['auto', t('settings.languageAuto')], ...LANGUAGES]),
+    ),
+    extra,
+  );
+  const panel = panelApi(el, controls, getSettings);
+  return panel;
 }

@@ -6,11 +6,12 @@ the app is called Chytalka in every interface language.
 
 ## Features
 
-- **Interface language:** English or Ukrainian. By default it follows Windows (the first language in the system language list). Switches in the settings without a restart.
+- **Interface language:** English or Ukrainian. By default it follows Windows (the first language in the system language list). Switches in the app panel (the gear button) without a restart.
 - **Tabs:** several books open at once; tabs are restored after a restart.
 - **Two reading modes:** continuous scrolling or page by page (a two-page spread on a wide screen).
 - **Themes:** light, sepia, dark. In the dark theme PDF/DjVu pages are inverted (light text on a dark background), while covers and photos keep their natural look.
 - **Brightness:** dims the book area from 100% down to 30% for reading at night; tabs and panels stay as they are.
+- **Two settings panels:** reading settings under the "T" button on the toolbar (theme, brightness, mode, text, pages) and the app panel under the gear button at the right of the tab bar (language, data, uninstall; available even with no book open).
 - **Text settings (FB2/EPUB):** font, size, line spacing, margins, column width, paragraph indent, paragraph spacing, alignment.
 - **Zoom (PDF/DjVu):** "Auto", "Fit width", "Fit page" or a percentage.
 - **Reading position** is remembered for every book and survives changes of font, window size or mode.
@@ -94,7 +95,7 @@ The books themselves are never copied: the app only reads them from disk.
 
 ### Resetting data
 
-Settings panel (the "T" button) → the **"Data"** section at the bottom:
+The app panel (the gear button at the right of the tab bar) → the **"Data"** section:
 
 | Button | What it does |
 |---|---|
@@ -143,7 +144,7 @@ The welcome screen has a "Whole library" link under "Recent".
 
 Either way works:
 
-- Settings panel → **"Data"** → **"Uninstall the app…"**: the app closes and the standard uninstaller starts.
+- The app panel (the gear button) → **"Uninstall the app…"**: the app closes and the standard uninstaller starts.
 - **Windows Settings → Apps → Installed apps → "Chytalka" → Uninstall.**
 
 The uninstaller asks whether to also delete the settings, bookmarks and reading positions (`%APPDATA%\book-reader`).
@@ -172,7 +173,7 @@ book-reader/
 │  └─ renderer/            user interface
 │     ├─ index.html, styles.css
 │     ├─ app.js            tabs, toolbar, search, bookmarks, library, hotkeys
-│     ├─ settings-panel.js settings panel (the "T" button)
+│     ├─ settings-panel.js reading settings ("T" button) and the app panel (gear button)
 │     ├─ i18n.js           interface translations
 │     ├─ locales/          interface texts: en.json, uk.json
 │     ├─ lib.js            on-demand library loading
@@ -217,12 +218,12 @@ npx electron tools/autotest.js tools/scenarios/stage6.scenario.js out/stage6
 | `stage3` | scroll / pages, keeping the position (+ `stage3-restore`) |
 | `stage4`, `formatting` | EPUB; italic, bold, links |
 | `stage5`, `djvu-quick`, `dark-pages` | PDF and DjVu, speed, dark theme |
-| `stage6` | settings panel and hotkeys |
+| `stage6` | reading settings panel and hotkeys |
 | `resize` | text and images fit windows of different sizes |
 | `search`, `bookmarks` (+ `bookmarks-restore`), `chapter`, `toc-jump` | search, bookmarks, current chapter, jumping through the contents |
 | `reading-time` | time to the end of the chapter, reading speed adaptation |
 | `close-tabs` | closing tabs of every format (close button, middle button, Ctrl+W) with real mouse clicks |
-| `data` | reset settings, clear history, "Reset everything", the uninstall button in the dev version |
+| `data` | the app panel, reset settings, clear history, "Reset everything", the uninstall button in the dev version |
 | `backup` | data export and import, restoring after "Reset everything", rejecting foreign files |
 | `library` | library (search, sorting, "Find file…", "Forget"), automatic backups and their rotation |
 | `language` | switching the language without a restart, no Ukrainian text in the English UI, matching keys in `en.json` and `uk.json` |

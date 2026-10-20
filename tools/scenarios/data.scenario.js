@@ -14,14 +14,25 @@ module.exports = async ({ root, exec, waitFor, wait, shot, log }) => {
   };
   const isDefault = `Object.keys(app.DEFAULT_SETTINGS).every(k => app.store.settings[k] === app.DEFAULT_SETTINGS[k])`;
 
+  // The app panel (gear button) works even without an open book
+  await exec(`document.getElementById('btn-app').click()`);
+  check('кнопка «Програма» працює без відкритої книги', await exec(`!document.querySelector('.app-popover').hidden && !!document.querySelector('.app-popover .data-section')`));
+  await exec(`document.getElementById('btn-app').click()`);
+  check('повторний клік закриває панель «Програма»', await exec(`document.querySelector('.app-popover').hidden`));
+
   await open('Diuna.fb2');
   await open('Allan_and_Barbara_Pease_-_Body_Language_The_Definitive_Book.pdf');
   await exec(`app.toggleBookmark()`);
   await exec(`app.updateSettings({ theme: 'dark', fontSize: 28, mode: 'paged', lineHeight: 2 })`);
 
   await exec(`document.getElementById('btn-settings').click()`);
-  check('розділ «Дані» в панелі налаштувань', await exec(`[...document.querySelectorAll('.data-section .data-btn')].map(b => b.textContent).join(' | ')`) ===
+  check('у налаштуваннях читання немає даних і мови', await exec(`!document.querySelector('.reading-popover .data-section') && !document.querySelector('.reading-popover [data-value="en"]')`));
+  await exec(`document.getElementById('btn-app').click()`);
+  check('відкрилась одна панель: «Програма» замість налаштувань читання', await exec(`document.querySelector('.reading-popover').hidden && !document.querySelector('.app-popover').hidden`));
+  check('розділ «Дані» в панелі «Програма»', await exec(`[...document.querySelectorAll('.app-popover .data-section .data-btn')].map(b => b.textContent).join(' | ')`) ===
     'Скинути налаштування | Очистити історію читання… | Скинути все й перезапустити… | Експортувати дані… | Імпортувати дані… | Видалити програму…');
+  const version = require(path.join(root, 'package.json')).version;
+  check('версія програми в панелі', await exec(`document.querySelector('.app-popover .app-version').textContent`) === `Версія ${version}`, await exec(`document.querySelector('.app-popover .app-version').textContent`));
   await shot('data-01-panel');
 
   // 1) Reset settings: books, tabs and bookmarks stay

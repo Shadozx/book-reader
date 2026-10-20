@@ -7,7 +7,7 @@ module.exports = async ({ root, exec, waitFor, shot, wait, log }) => {
     results.push(ok);
     log(`${ok ? 'OK  ' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
   };
-  const panel = `document.querySelector('.settings-popover')`;
+  const panel = `document.querySelector('.reading-popover')`;
   const para = `app.activeTab.paneEl.querySelector('.flow-scroller .book-content .chunk:not(.cover-chunk) p')`;
   // Set a slider value the way a user does (input event)
   const setSlider = (key, value) => exec(`(() => { const r = ${panel}.querySelector('input[data-key="${key}"]'); r.value = ${value}; r.dispatchEvent(new Event('input')); })()`);

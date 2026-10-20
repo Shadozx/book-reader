@@ -8,7 +8,7 @@ module.exports = async ({ root, exec, waitFor, wait, shot, log }) => {
     results.push(!!ok);
     log(`${ok ? 'OK  ' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
   };
-  const panel = `document.querySelector('.settings-popover')`;
+  const panel = `document.querySelector('.reading-popover')`;
   const brightness = () => exec(`app.store.settings.brightness`);
   const filter = () => exec(`document.getElementById('panes').style.filter`);
   const key = (k) => exec(`(document.activeElement || window).dispatchEvent(new KeyboardEvent('keydown', { key: '${k}', ctrlKey: true, shiftKey: true, bubbles: true }))`);

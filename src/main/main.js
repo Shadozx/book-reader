@@ -9,6 +9,8 @@ const { t, setLanguage } = require('./i18n');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const BOOK_EXTENSIONS = ['fb2', 'zip', 'epub', 'pdf', 'djvu', 'djv'];
+// From package.json: app.getVersion() gives Electron's version when the app is started by the autotests
+const APP_VERSION = require(path.join(ROOT, 'package.json')).version;
 
 // Only these project folders are exposed to the page via the app:// protocol
 const SERVED_DIRS = [
@@ -312,6 +314,8 @@ function registerIpc() {
   // The window reports the language setting; native dialogs follow it. Returns the language actually used.
   ipcMain.handle('app:set-language', (_e, setting) => setLanguage(setting));
 
+  ipcMain.handle('app:version', () => APP_VERSION);
+
   ipcMain.handle('app:initial-files', () => {
     const files = pendingFiles;
     pendingFiles = [];
@@ -362,7 +366,7 @@ function localDate(date = new Date()) {
 }
 
 function makeBackup(state) {
-  return { format: BACKUP_FORMAT, version: 1, exported: new Date().toISOString(), appVersion: app.getVersion(), state: cleanState(state) };
+  return { format: BACKUP_FORMAT, version: 1, exported: new Date().toISOString(), appVersion: APP_VERSION, state: cleanState(state) };
 }
 
 // Auto backup: one file per day (updated during the day), the last 10 days are kept.

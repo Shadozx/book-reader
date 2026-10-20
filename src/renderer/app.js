@@ -1,5 +1,5 @@
 import { h, icon, debounce, basename, stripExtension } from './util.js';
-import { createSettingsPanel, BRIGHTNESS } from './settings-panel.js';
+import { createSettingsPanel, createAppPanel, BRIGHTNESS } from './settings-panel.js';
 import { t, tNodes, locale, translateDom, setLanguage } from './i18n.js';
 
 const api = window.api;
@@ -438,7 +438,7 @@ function renderToc() {
 
 function setTheme(theme) {
   store.settings.theme = theme;
-  if (settingsPanel?.open) settingsPanel.sync();
+  syncPanels();
   document.documentElement.dataset.theme = theme;
   updateThemeButton();
   applySettingsToViewers();
@@ -453,7 +453,7 @@ function updateThemeButton() {
 
 function setMode(mode) {
   store.settings.mode = mode;
-  if (settingsPanel?.open) settingsPanel.sync();
+  syncPanels();
   updateModeSwitch();
   applySettingsToViewers();
 }
@@ -464,7 +464,7 @@ function updateSettings(patch) {
   if (languageChanged) applyLanguage();
   document.documentElement.dataset.theme = store.settings.theme;
   updateThemeButton();
-  if (settingsPanel?.open) settingsPanel.sync();
+  syncPanels();
   updateModeSwitch();
   applySettingsToViewers();
 }
@@ -475,10 +475,13 @@ async function applyLanguage() {
   setLanguage(await api.setLanguage(store.settings.language));
   translateDom();
   document.getElementById('toast').classList.remove('show');
-  const panelOpen = settingsPanel.open;
+  const settingsOpen = settingsPanel.open;
+  const appOpen = appPanel.open;
   settingsPanel.el.remove();
-  buildSettingsPanel();
-  if (panelOpen) setSettingsOpen(true);
+  appPanel.el.remove();
+  buildPanels();
+  if (settingsOpen) setSettingsOpen(true);
+  if (appOpen) setAppOpen(true);
   buildLibrary();
   if (libraryOpen()) renderLibrary();
   for (const tab of tabs) tab.closeBtn.title = t('tab.close');
@@ -594,6 +597,7 @@ function setupKeyboard() {
     else if (ctrl && (e.code === 'Minus' || e.code === 'NumpadSubtract')) zoomOrFont(-1);
     else if (ctrl && (e.code === 'Digit0' || e.code === 'Numpad0')) resetZoomOrFont();
     else if (e.key === 'Escape' && settingsPanel.open) setSettingsOpen(false);
+    else if (e.key === 'Escape' && appPanel.open) setAppOpen(false);
     else if (e.target.closest?.('input, select, textarea')) return;
     else if (ctrl && e.shiftKey && e.key === 'ArrowUp') changeBrightness(0.1);
     else if (ctrl && e.shiftKey && e.key === 'ArrowDown') changeBrightness(-0.1);
@@ -604,16 +608,21 @@ function setupKeyboard() {
 }
 
 /* ------------------------------------------------------------------
- * Settings panel, font size, notifications
+ * Panels (reading settings, app), font size, notifications
  * ------------------------------------------------------------------ */
 
-let settingsPanel = null;
+let settingsPanel = null;   // reading settings, the "T" button
+let appPanel = null;        // language, data, uninstall: the gear button in the tab bar
+
+function syncPanels() {
+  if (settingsPanel?.open) settingsPanel.sync();
+  if (appPanel?.open) appPanel.sync();
+}
 
 /* ---------- Data: reset and uninstall ---------- */
 
 function resetSettings() {
   updateSettings({ ...DEFAULT_SETTINGS });
-  settingsPanel.sync();
   toast(t('data.settingsReset'));
 }
 
@@ -629,7 +638,7 @@ async function clearHistory() {
   store.books = {};
   store.session = { tabs: [], active: null };
   saveStore.flush();
-  setSettingsOpen(false);
+  setAppOpen(false);
   renderRecent();
   toast(t('data.cleared'));
 }
@@ -719,33 +728,51 @@ function createDataSection() {
     folder,
     h('h3', {}, t('data.app')),
     button(t('data.uninstall'), uninstallApp, true),
+    dataControls.version,
   );
 }
 
-function buildSettingsPanel() {
+function buildPanels() {
   settingsPanel = createSettingsPanel({
     getSettings: () => store.settings,
     update: updateSettings,
     defaults: DEFAULT_SETTINGS,
+  });
+  dataControls.version = h('div', { class: 'app-version muted small' });
+  api.appVersion().then((version) => { dataControls.version.textContent = t('data.version', { version }); });
+  appPanel = createAppPanel({
+    getSettings: () => store.settings,
+    update: updateSettings,
     extra: createDataSection(),
   });
-  document.getElementById('main').append(settingsPanel.el);
+  document.getElementById('main').append(settingsPanel.el, appPanel.el);
 }
 
-function setupSettingsPanel() {
-  buildSettingsPanel();
-  const btn = document.getElementById('btn-settings');
-  btn.addEventListener('click', () => setSettingsOpen(!settingsPanel.open));
-  // A click outside the panel closes it
+function setupPanels() {
+  buildPanels();
+  document.getElementById('btn-app').append(icon('settings'));
+  const buttons = { settings: document.getElementById('btn-settings'), app: document.getElementById('btn-app') };
+  buttons.settings.addEventListener('click', () => setSettingsOpen(!settingsPanel.open));
+  buttons.app.addEventListener('click', () => setAppOpen(!appPanel.open));
+  // A click outside a panel closes it
   document.addEventListener('mousedown', (e) => {
-    if (settingsPanel.open && !settingsPanel.el.contains(e.target) && !btn.contains(e.target)) setSettingsOpen(false);
+    if (settingsPanel.open && !settingsPanel.el.contains(e.target) && !buttons.settings.contains(e.target)) setSettingsOpen(false);
+    if (appPanel.open && !appPanel.el.contains(e.target) && !buttons.app.contains(e.target)) setAppOpen(false);
   });
 }
 
+// Only one panel is open at a time
 function setSettingsOpen(open) {
-  if (open && dataControls.autoBackup) dataControls.autoBackup.checked = store.settings.autoBackup !== false;
+  if (open) setAppOpen(false);
   settingsPanel.setOpen(open, { textApplies: activeTab?.viewer?.kind !== 'fixed' });
   document.getElementById('btn-settings').classList.toggle('active', open);
+}
+
+function setAppOpen(open) {
+  if (open) setSettingsOpen(false);
+  if (open && dataControls.autoBackup) dataControls.autoBackup.checked = store.settings.autoBackup !== false;
+  appPanel.setOpen(open);
+  document.getElementById('btn-app').classList.toggle('active', open);
 }
 
 // Dims only the book area: tabs, toolbar and panels keep their normal look.
@@ -829,6 +856,7 @@ const libraryOpen = () => !libraryEl.hidden;
 
 function openLibrary() {
   setSettingsOpen(false);
+  setAppOpen(false);
   libraryEl.hidden = false;
   document.getElementById('btn-library').classList.add('active');
   renderLibrary();
@@ -1295,7 +1323,7 @@ async function init() {
   setupToolbar();
   setupKeyboard();
   setupDragAndDrop();
-  setupSettingsPanel();
+  setupPanels();
   setupSearch();
   setupBookmarks();
   setupLibrary();
@@ -1318,6 +1346,6 @@ async function init() {
 }
 
 // Hooks for autotests (tools/autotest.js)
-window.app = { openLibrary, closeLibrary, renderLibrary, exportData, importData, resetSettings, clearHistory, resetAll, uninstallApp, trackReadingSpeed, formatMinutes, toggleBookmark, showSidePanel, openSearch, closeSearch, openBook, closeTab, activateTab, setTheme, setMode, updateSettings, setSettingsOpen, DEFAULT_SETTINGS, tabs, store, get activeTab() { return activeTab; } };
+window.app = { openLibrary, closeLibrary, renderLibrary, exportData, importData, resetSettings, clearHistory, resetAll, uninstallApp, trackReadingSpeed, formatMinutes, toggleBookmark, showSidePanel, openSearch, closeSearch, openBook, closeTab, activateTab, setTheme, setMode, updateSettings, setSettingsOpen, setAppOpen, DEFAULT_SETTINGS, tabs, store, get activeTab() { return activeTab; } };
 
 init();

@@ -178,7 +178,7 @@ button, select {
 .tab .icon-btn { width: 22px; height: 22px; flex: none; opacity: 0.6; }
 .tab .icon-btn:hover { opacity: 1; }
 
-#btn-new-tab { margin-bottom: 2px; flex: none; }
+#btn-new-tab, #btn-app { margin-bottom: 2px; flex: none; }
 
 /* ---------- Toolbar ---------- */
 #toolbar {
@@ -1087,6 +1087,7 @@ button, select {
 .lib-btn:disabled { opacity: 0.4; cursor: default; }
 #btn-library-all { margin: 8px 12px 0; }
 .backup-dir { margin: 4px 0 0 24px; word-break: break-all; }
+.app-version { margin-top: 10px; }
 
 @media (max-width: 900px) {
   .lib-item { grid-template-columns: 44px minmax(0, 1fr) auto; }

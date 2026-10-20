@@ -88,7 +88,7 @@ module.exports = async ({ root, exec, waitFor, wait, shot, log }) => {
   check('ручна копія не видалена', fs.existsSync(path.join(backupDir, 'chytalka-backup-2020-01-01.json')));
   // Turning it off
   fs.rmSync(todayFile);
-  await exec(`(() => { document.getElementById('btn-settings').click(); })()`);
+  await exec(`document.getElementById('btn-app').click()`);
   check('перемикач автокопій у розділі «Дані» увімкнений', await exec(`document.querySelector('.data-section input[type=checkbox]').checked`));
   await exec(`(() => { const c = document.querySelector('.data-section input[type=checkbox]'); c.click(); })()`);
   await exec(`app.updateSettings({ fontSize: 22 })`);

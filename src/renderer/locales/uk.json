@@ -1,5 +1,6 @@
 {
   "app.name": "Chytalka",
+  "app.panel": "Програма",
 
   "toolbar.library": "Бібліотека — книги, які пам'ятає програма (Ctrl+L)",
   "toolbar.open": "Відкрити книгу (Ctrl+O)",
@@ -15,7 +16,8 @@
   "toolbar.modePaged": "Посторінково",
   "toolbar.bookmarkAdd": "Додати закладку (Ctrl+D)",
   "toolbar.bookmarkRemove": "Прибрати закладку (Ctrl+D)",
-  "toolbar.settings": "Налаштування тексту",
+  "toolbar.settings": "Налаштування читання",
+  "toolbar.app": "Програма: мова, дані, видалення",
   "toolbar.theme": "Змінити тему",
   "toolbar.themeState": "Тема: {current} (натисніть — {next})",
   "theme.light": "світла",
@@ -76,7 +78,7 @@
   "toast.zoomAuto": "Масштаб: авто",
   "toast.brightness": "Яскравість: {percent}%",
 
-  "settings.title": "Налаштування",
+  "settings.title": "Налаштування читання",
   "settings.language": "Мова",
   "settings.languageAuto": "Як у системі",
   "settings.theme": "Тема",
@@ -123,6 +125,7 @@
   "data.openFolder": "Відкрити папку з даними",
   "data.app": "Програма",
   "data.uninstall": "Видалити програму…",
+  "data.version": "Версія {version}",
   "data.settingsReset": "Налаштування скинуто",
   "data.clearTitle": "Очистити історію",
   "data.clearMessage": "Очистити історію читання?",
