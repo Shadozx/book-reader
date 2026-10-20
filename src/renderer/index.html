@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="uk" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self' blob: data:; connect-src 'self' blob: data:; object-src 'none'; frame-src 'none'">
+  <title>Читалка</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header id="tabbar">
+      <button id="btn-library" class="icon-btn" title="Бібліотека — книги, які пам'ятає програма (Ctrl+L)"></button>
+      <div id="tabs" role="tablist"></div>
+      <button id="btn-new-tab" class="icon-btn" title="Відкрити книгу (Ctrl+O)"></button>
+    </header>
+
+    <div id="toolbar" hidden>
+      <button id="btn-toc" class="icon-btn" title="Зміст і закладки (Ctrl+B)"></button>
+      <div id="book-info">
+        <div id="book-title"></div>
+        <div id="book-author"></div>
+      </div>
+      <div class="spacer"></div>
+      <div id="zoom-controls" class="group" hidden>
+        <button id="btn-zoom-out" class="icon-btn" title="Зменшити (Ctrl −)"></button>
+        <select id="zoom-select" title="Масштаб">
+          <option value="auto">Авто</option>
+          <option value="width">По ширині</option>
+          <option value="page">Цілком</option>
+          <option value="0.5">50%</option>
+          <option value="0.75">75%</option>
+          <option value="1">100%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+          <option value="2">200%</option>
+          <option value="3">300%</option>
+          <option value="custom" hidden></option>
+        </select>
+        <button id="btn-zoom-in" class="icon-btn" title="Збільшити (Ctrl +)"></button>
+      </div>
+      <div id="progress" title="Прогрес читання — клікніть, щоб перейти (Ctrl+G)"></div>
+      <div class="group segmented" id="mode-switch">
+        <button data-mode="scroll" class="icon-btn" title="Прокрутка"></button>
+        <button data-mode="paged" class="icon-btn" title="Посторінково"></button>
+      </div>
+      <button id="btn-bookmark" class="icon-btn" title="Додати закладку (Ctrl+D)"></button>
+      <button id="btn-settings" class="icon-btn" title="Налаштування тексту"></button>
+      <button id="btn-theme" class="icon-btn" title="Змінити тему"></button>
+      <div id="chapter-bar" hidden><span></span></div>
+    </div>
+
+    <div id="search-bar" hidden>
+      <input id="search-input" type="search" placeholder="Пошук у книзі" aria-label="Пошук у книзі" autocomplete="off" spellcheck="false">
+      <span id="search-count" aria-live="polite"></span>
+      <button id="btn-search-prev" class="icon-btn" title="Попередній збіг (Shift+Enter)"></button>
+      <button id="btn-search-next" class="icon-btn" title="Наступний збіг (Enter)"></button>
+      <button id="btn-search-close" class="icon-btn" title="Закрити пошук (Esc)"></button>
+    </div>
+
+    <main id="main">
+      <aside id="toc-panel" hidden>
+        <div class="panel-tabs" role="tablist">
+          <button type="button" role="tab" data-panel="toc" class="on">Зміст</button>
+          <button type="button" role="tab" data-panel="bookmarks">Закладки</button>
+        </div>
+        <nav id="toc-list"></nav>
+        <div id="bookmark-list" hidden></div>
+      </aside>
+      <div id="panes"></div>
+      <section id="library" hidden aria-label="Бібліотека"></section>
+      <section id="welcome" hidden>
+        <div class="welcome-inner">
+          <h1>Читалка</h1>
+          <p class="muted">FB2 · EPUB · PDF · DjVu</p>
+          <button id="btn-open-big" class="primary-btn">Відкрити книгу</button>
+          <p class="muted small">або перетягніть файли у вікно</p>
+          <div id="recent-block" hidden>
+            <h2>Нещодавні</h2>
+            <ul id="recent-list"></ul>
+            <button id="btn-library-all" class="link-btn" type="button">Уся бібліотека</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="drop-overlay" hidden><div>Відпустіть, щоб відкрити</div></div>
+    <div id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

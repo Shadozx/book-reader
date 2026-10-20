@@ -1,0 +1,93 @@
+{
+  "name": "book-reader",
+  "version": "0.1.0",
+  "description": "Читалка книг: FB2, EPUB, PDF, DjVu",
+  "main": "src/main/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "node node_modules/electron/install.js",
+    "dist": "node tools/build.js",
+    "icon": "electron tools/make-icon.js"
+  },
+  "dependencies": {
+    "djvu-rs": "0.40.3",
+    "jszip": "3.10.1",
+    "pdfjs-dist": "6.3.289"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "local.bookreader.app",
+    "productName": "Читалка",
+    "executableName": "BookReader",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "vendor/**/*",
+      "build/icon.png",
+      "package.json",
+      "!**/*.map",
+      "!node_modules/pdfjs-dist/legacy/**",
+      "!node_modules/pdfjs-dist/web/**",
+      "!node_modules/pdfjs-dist/types/**",
+      "!node_modules/pdfjs-dist/image_decoders/**",
+      "!node_modules/djvu-rs/**/*.d.ts"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "fb2",
+        "name": "Chytalka.FB2",
+        "description": "Книга FB2",
+        "role": "Viewer"
+      },
+      {
+        "ext": "epub",
+        "name": "Chytalka.EPUB",
+        "description": "Книга EPUB",
+        "role": "Viewer"
+      },
+      {
+        "ext": "pdf",
+        "name": "Chytalka.PDF",
+        "description": "Документ PDF",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "djvu",
+          "djv"
+        ],
+        "name": "Chytalka.DjVu",
+        "description": "Документ DjVu",
+        "role": "Viewer"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Читалка",
+      "artifactName": "Chytalka-Setup-${version}.${ext}",
+      "include": "build/installer.nsh"
+    }
+  }
+}
