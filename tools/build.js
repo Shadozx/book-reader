@@ -84,6 +84,7 @@ async function fixNsisUkrainian() {
 }
 
 async function main() {
+  let failed = false;
   try {
     addUkrainianMessages();
     await fixNsisUkrainian();
@@ -92,10 +93,12 @@ async function main() {
     for (const file of files) console.log('  ' + path.relative(root, file));
   } catch (err) {
     console.error(err);
-    process.exitCode = 1;
+    failed = true;
   } finally {
     restoreAll();
   }
+  // An explicit exit: a failed build must not end with code 0
+  if (failed) process.exit(1);
 }
 
 main();

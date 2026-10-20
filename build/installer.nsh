@@ -6,6 +6,18 @@
 LangString chytalkaDeleteData 1033 "Also delete your settings, bookmarks and reading positions?$\r$\n$\r$\nChoose $\"No$\" if you plan to install the app again.$\r$\nBook files and backups in $\"Documents\Chytalka$\" are not deleted."
 LangString chytalkaDeleteData 1058 "Видалити також ваші налаштування, закладки та місця читання?$\r$\n$\r$\nОберіть «Ні», якщо плануєте встановити програму знову.$\r$\nФайли книг і резервні копії в «Документи\Chytalka» не видаляються."
 
+; Is the app running? electron-builder answers this with three PowerShell launches, which take
+; about 10 s (the progress bar stands still meanwhile). Its own tasklist fallback gives the same answer
+; in under a second, so it's used directly, in both the installer and the uninstaller.
+; With a custom check electron-builder no longer includes these helpers of its own check, so they're included here.
+!include "getProcessInfo.nsh"
+Var pid
+!macro customCheckAppRunning
+  Var /GLOBAL IsPowerShellAvailable
+  StrCpy $IsPowerShellAvailable 1
+  !insertmacro _CHECK_APP_RUNNING
+!macroend
+
 ; Registry key with file types (the test replaces it with a separate test key)
 !ifndef CHYTALKA_CLASSES
   !define CHYTALKA_CLASSES "Software\Classes"
