@@ -1,6 +1,11 @@
 ﻿; Extra uninstaller steps for the app (included via build.nsis.include in package.json).
 ; None of this runs during an update (a new version installed over the old one).
 
+; The uninstaller question in both languages (installerLanguages in package.json: 1033 English,
+; 1058 Ukrainian); NSIS picks the one matching the Windows display language, English otherwise
+LangString chytalkaDeleteData 1033 "Also delete your settings, bookmarks and reading positions?$\r$\n$\r$\nChoose $\"No$\" if you plan to install the app again.$\r$\nBook files and backups in $\"Documents\Chytalka$\" are not deleted."
+LangString chytalkaDeleteData 1058 "Видалити також ваші налаштування, закладки та місця читання?$\r$\n$\r$\nОберіть «Ні», якщо плануєте встановити програму знову.$\r$\nФайли книг і резервні копії в «Документи\Chytalka» не видаляються."
+
 ; Registry key with file types (the test replaces it with a separate test key)
 !ifndef CHYTALKA_CLASSES
   !define CHYTALKA_CLASSES "Software\Classes"
@@ -46,7 +51,7 @@
 
     ; Ask whether to also delete settings, bookmarks and reading positions (%APPDATA%\book-reader)
     IfSilent skipDeleteData
-    MessageBox MB_YESNO|MB_ICONQUESTION "Видалити також ваші налаштування, закладки та місця читання?$\r$\n$\r$\nОберіть «Ні», якщо плануєте встановити програму знову.$\r$\nФайли книг і резервні копії в «Документи\Chytalka» не видаляються." /SD IDNO IDNO skipDeleteData
+    MessageBox MB_YESNO|MB_ICONQUESTION "$(chytalkaDeleteData)" /SD IDNO IDNO skipDeleteData
       SetShellVarContext current
       RMDir /r "$APPDATA\book-reader"
     skipDeleteData:

@@ -19,8 +19,14 @@ process.env.AUTOTEST_AUTOCONFIRM ??= '1';
 process.env.CHYTALKA_BACKUP_DIR ??= path.join(outDir, 'backups');
 // Tests check Ukrainian texts, so "system language" is Ukrainian regardless of the machine
 process.env.CHYTALKA_SYSTEM_LANG ??= 'uk';
-// AUTOTEST_APP=<path to app.asar>: test the already built (packaged) app
-require(process.env.AUTOTEST_APP ? path.join(process.env.AUTOTEST_APP, 'src', 'main', 'main.js') : '../src/main/main.js');
+// AUTOTEST_APP=<path to app.asar>: test the already built (packaged) app (a relative path is taken from the current folder).
+// If the app can't be loaded, report it in the log and exit instead of Electron's error dialog, which would hang the run.
+try {
+  require(process.env.AUTOTEST_APP ? path.resolve(process.env.AUTOTEST_APP, 'src', 'main', 'main.js') : '../src/main/main.js');
+} catch (err) {
+  console.log('[autotest] APP LOAD ERROR', err);
+  app.exit(1);
+}
 
 const log = (...args) => console.log('[autotest]', ...args);
 

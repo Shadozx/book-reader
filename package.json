@@ -86,6 +86,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Chytalka",
+      "installerLanguages": [
+        "en_US",
+        "uk_UA"
+      ],
       "artifactName": "Chytalka-Setup-${version}.${ext}",
       "include": "build/installer.nsh"
     }
