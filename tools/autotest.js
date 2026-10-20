@@ -17,6 +17,8 @@ if (!process.env.AUTOTEST_KEEP_STATE) {
 app.setPath('userData', path.join(outDir, 'userdata'));
 process.env.AUTOTEST_AUTOCONFIRM ??= '1';
 process.env.CHYTALKA_BACKUP_DIR ??= path.join(outDir, 'backups');
+// Tests check Ukrainian texts, so "system language" is Ukrainian regardless of the machine
+process.env.CHYTALKA_SYSTEM_LANG ??= 'uk';
 // AUTOTEST_APP=<path to app.asar>: test the already built (packaged) app
 require(process.env.AUTOTEST_APP ? path.join(process.env.AUTOTEST_APP, 'src', 'main', 'main.js') : '../src/main/main.js');
 

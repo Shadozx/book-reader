@@ -1,6 +1,6 @@
 import { h, icon, debounce, basename, stripExtension } from './util.js';
 import { createSettingsPanel } from './settings-panel.js';
-import { t, tNodes, locale, translateDom } from './i18n.js';
+import { t, tNodes, locale, translateDom, setLanguage } from './i18n.js';
 
 const api = window.api;
 
@@ -9,6 +9,7 @@ const api = window.api;
  * ------------------------------------------------------------------ */
 
 export const DEFAULT_SETTINGS = {
+  language: 'auto',        // auto | uk | en (auto: from the Windows language list)
   theme: 'light',          // light | sepia | dark
   mode: 'scroll',          // scroll | paged
   fontFamily: 'Georgia, "Times New Roman", serif',
@@ -22,7 +23,7 @@ export const DEFAULT_SETTINGS = {
   spread: true,            // two pages side by side in paged mode on a wide screen
   invertDark: true,        // invert PDF/DjVu pages in the dark theme
   zoom: 'auto',            // default PDF/DjVu zoom
-  autoBackup: true,        // daily backup to Documents\Читалка
+  autoBackup: true,        // daily backup to Documents\Chytalka
 };
 
 // Default reading speed; it then adapts to the user
@@ -133,6 +134,7 @@ class Tab {
     this.titleEl = h('span', { class: 'tab-title' }, this.record.title);
     this.formatEl = h('span', { class: 'tab-format' });
     const closeBtn = h('button', { class: 'icon-btn', title: t('tab.close') }, icon('x', 14));
+    this.closeBtn = closeBtn;
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       closeTab(this);
@@ -456,12 +458,34 @@ function setMode(mode) {
 }
 
 function updateSettings(patch) {
+  const languageChanged = 'language' in patch && patch.language !== store.settings.language;
   Object.assign(store.settings, patch);
+  if (languageChanged) applyLanguage();
   document.documentElement.dataset.theme = store.settings.theme;
   updateThemeButton();
   if (settingsPanel?.open) settingsPanel.sync();
   updateModeSwitch();
   applySettingsToViewers();
+}
+
+// Switch the interface language without a restart: static texts are re-translated,
+// panels built in code are rebuilt, everything else is re-rendered
+async function applyLanguage() {
+  setLanguage(await api.setLanguage(store.settings.language));
+  translateDom();
+  document.getElementById('toast').classList.remove('show');
+  const panelOpen = settingsPanel.open;
+  settingsPanel.el.remove();
+  buildSettingsPanel();
+  if (panelOpen) setSettingsOpen(true);
+  buildLibrary();
+  if (libraryOpen()) renderLibrary();
+  for (const tab of tabs) tab.closeBtn.title = t('tab.close');
+  if (!searchEls.bar.hidden && lastSearchState) showSearchState(lastSearchState);
+  updateThemeButton();
+  updateToolbar();
+  renderBookmarks();
+  renderRecent();
 }
 
 function applySettingsToViewers() {
@@ -694,7 +718,7 @@ function createDataSection() {
   );
 }
 
-function setupSettingsPanel() {
+function buildSettingsPanel() {
   settingsPanel = createSettingsPanel({
     getSettings: () => store.settings,
     update: updateSettings,
@@ -702,6 +726,10 @@ function setupSettingsPanel() {
     extra: createDataSection(),
   });
   document.getElementById('main').append(settingsPanel.el);
+}
+
+function setupSettingsPanel() {
+  buildSettingsPanel();
   const btn = document.getElementById('btn-settings');
   btn.addEventListener('click', () => setSettingsOpen(!settingsPanel.open));
   // A click outside the panel closes it
@@ -822,8 +850,14 @@ function setupLibrary() {
   document.getElementById('btn-library').append(icon('library'));
   document.getElementById('btn-library').addEventListener('click', toggleLibrary);
   document.getElementById('btn-library-all').addEventListener('click', openLibrary);
+  buildLibrary();
+}
 
+// The library header; rebuilt when the interface language changes (the search text and sorting stay)
+function buildLibrary() {
+  const query = library.search?.value ?? '';
   library.search = h('input', { class: 'library-search', type: 'search', placeholder: t('library.search'), 'aria-label': t('library.searchLabel') });
+  library.search.value = query;
   library.search.addEventListener('input', () => {
     library.query = library.search.value.trim().toLowerCase();
     renderLibrary();
@@ -838,6 +872,7 @@ function setupLibrary() {
     h('option', { value: 'recent' }, t('library.sortRecent')),
     h('option', { value: 'title' }, t('library.sortTitle')),
     h('option', { value: 'progress' }, t('library.sortProgress')));
+  sort.value = library.sort;
   sort.addEventListener('change', () => {
     library.sort = sort.value;
     renderLibrary();
@@ -846,7 +881,7 @@ function setupLibrary() {
   close.addEventListener('click', closeLibrary);
   library.summary = h('div', { class: 'library-summary' });
   library.list = h('div', { class: 'library-list' });
-  libraryEl.append(
+  libraryEl.replaceChildren(
     h('div', { class: 'library-inner' },
       h('div', { class: 'library-head' }, h('h1', {}, t('library.title')), library.search, sort, close),
       library.summary,
@@ -967,8 +1002,10 @@ const searchEls = {
   count: document.getElementById('search-count'),
 };
 let searchedQuery = null;   // the query that already has results
+let lastSearchState = null;
 
 function showSearchState(r) {
+  lastSearchState = r;
   let text;
   if (r.noText) text = t('search.noText');
   else if (!searchEls.input.value.trim()) text = '';
@@ -1006,6 +1043,7 @@ function closeSearch() {
   if (searchEls.bar.hidden) return;
   searchEls.bar.hidden = true;
   searchedQuery = null;
+  lastSearchState = null;
   searchEls.count.textContent = '';
   for (const tab of tabs) tab.viewer?.clearSearch?.();
 }
@@ -1094,6 +1132,12 @@ function updateBookmarkButton() {
   btn.title = t(on ? 'toolbar.bookmarkRemove' : 'toolbar.bookmarkAdd');
 }
 
+// PDF/DjVu bookmarks are labelled by page number in the current language
+// (older ones stored the label in Ukrainian); text bookmarks show the quoted text
+function bookmarkText(bm) {
+  return Number.isInteger(bm.location?.page) ? t('bookmark.page', { n: bm.location.page + 1 }) : bm.text;
+}
+
 function renderBookmarks() {
   const tab = activeTab;
   const list = tab?.record.bookmarks ?? [];
@@ -1112,7 +1156,7 @@ function renderBookmarks() {
     });
     const item = h('div', { class: 'bookmark-item', role: 'button', tabindex: '0' },
       h('div', { class: 'bookmark-main' },
-        h('div', { class: 'bookmark-text' }, bm.text),
+        h('div', { class: 'bookmark-text' }, bookmarkText(bm)),
         h('div', { class: 'bookmark-sub' }, [bm.chapter, `${Math.floor(bm.percent * 100)}%`].filter(Boolean).join(' · '))),
       remove);
     const open = () => tab.viewer?.goTo(bm.location);
@@ -1219,11 +1263,12 @@ function setupToolbar() {
 }
 
 async function init() {
-  translateDom();
   const saved = await api.loadState();
   Object.assign(store.settings, saved.settings);
   store.books = saved.books ?? {};
   Object.assign(store.reading, saved.reading);
+  setLanguage(await api.setLanguage(store.settings.language));
+  translateDom();
   document.documentElement.dataset.theme = store.settings.theme;
   updateThemeButton();
 

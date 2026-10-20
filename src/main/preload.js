@@ -23,5 +23,6 @@ contextBridge.exposeInMainWorld('api', {
   importApply: () => ipcRenderer.invoke('data:import-apply'),
   uninstallInfo: () => ipcRenderer.invoke('app:uninstall-info'),
   uninstall: () => ipcRenderer.invoke('app:uninstall'),
+  setLanguage: (setting) => ipcRenderer.invoke('app:set-language', setting),
   onOpenFiles: (callback) => ipcRenderer.on('open-files', (_e, files) => callback(files)),
 });

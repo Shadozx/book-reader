@@ -2,7 +2,7 @@
 // Changes apply immediately; sliders update the book at most once per frame.
 
 import { h } from './util.js';
-import { t } from './i18n.js';
+import { t, LANGUAGES } from './i18n.js';
 
 // Fonts available on every Windows 10/11
 const FONTS = [
@@ -144,6 +144,8 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
 
   const el = h('div', { class: 'settings-popover', hidden: true, role: 'dialog', 'aria-label': t('settings.title') },
     h('section', { class: 'settings-section' },
+      h('h3', {}, t('settings.language')),
+      segmented('language', [['auto', t('settings.languageAuto')], ...LANGUAGES]),
       h('h3', {}, t('settings.theme')),
       segmented('theme', [['light', t('settings.themeLight')], ['sepia', t('settings.themeSepia')], ['dark', t('settings.themeDark')]]),
       h('h3', {}, t('settings.mode')),

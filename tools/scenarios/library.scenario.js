@@ -1,4 +1,4 @@
-// Library (Ctrl+L) and automatic backups in Documents\Читалка
+// Library (Ctrl+L) and automatic backups in Documents\Chytalka
 // (the autotest replaces the backup folder with a test one via CHYTALKA_BACKUP_DIR)
 const path = require('node:path');
 const fs = require('node:fs');

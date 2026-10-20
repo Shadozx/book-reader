@@ -5,7 +5,7 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
 const { spawn } = require('node:child_process');
-const { t } = require('./i18n');
+const { t, setLanguage } = require('./i18n');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const BOOK_EXTENSIONS = ['fb2', 'zip', 'epub', 'pdf', 'djvu', 'djv'];
@@ -309,6 +309,9 @@ function registerIpc() {
     return 'started';
   });
 
+  // The window reports the language setting; native dialogs follow it. Returns the language actually used.
+  ipcMain.handle('app:set-language', (_e, setting) => setLanguage(setting));
+
   ipcMain.handle('app:initial-files', () => {
     const files = pendingFiles;
     pendingFiles = [];
@@ -324,9 +327,34 @@ const AUTO_BACKUP_KEEP = 10;                 // how many days of auto backups to
 const AUTO_BACKUP_EVERY = 5 * 60 * 1000;     // refresh the daily backup at most once every 5 minutes
 let lastAutoBackup = 0;
 
-// Documents\Читалка in any interface language, so the folder doesn't change when the language does
+// Documents\Chytalka: a Latin name in any interface language, safe for older tools and scripts
 // (autotests override it with CHYTALKA_BACKUP_DIR so they don't write to the real Documents)
-const backupDir = () => process.env.CHYTALKA_BACKUP_DIR ?? path.join(app.getPath('documents'), 'Читалка');
+const backupDir = () => process.env.CHYTALKA_BACKUP_DIR ?? path.join(app.getPath('documents'), 'Chytalka');
+
+// Earlier versions kept backups in Documents\Читалка. Their files are moved to the new folder once
+// (a file that already exists there is not overwritten); the old folder is removed only when it's empty.
+const LEGACY_BACKUP_DIR = 'Читалка';
+
+async function migrateBackupDir() {
+  const legacy = path.join(path.dirname(backupDir()), LEGACY_BACKUP_DIR);
+  let files;
+  try {
+    files = await fs.readdir(legacy);
+  } catch {
+    return;
+  }
+  try {
+    await fs.mkdir(backupDir(), { recursive: true });
+    for (const name of files) {
+      const target = path.join(backupDir(), name);
+      const taken = await fs.access(target).then(() => true, () => false);
+      if (!taken) await fs.rename(path.join(legacy, name), target);
+    }
+    await fs.rmdir(legacy).catch(() => {});
+  } catch (err) {
+    console.warn('Failed to move backups to the new folder', err);
+  }
+}
 
 function localDate(date = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
@@ -407,6 +435,8 @@ if (!app.requestSingleInstanceLock()) {
     registerProtocol();
     registerIpc();
     const saved = await readJson(stateFile(), {});
+    setLanguage(saved.settings?.language);
+    await migrateBackupDir();
     createWindow(fitToScreen(saved.window));
   });
 

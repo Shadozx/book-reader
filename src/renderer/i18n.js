@@ -4,9 +4,13 @@
 // and data-i18n-aria-label attributes and filled in by translateDom().
 
 import uk from './locales/uk.json' with { type: 'json' };
+import en from './locales/en.json' with { type: 'json' };
 
-const DICTS = { uk };
-const LOCALES = { uk: 'uk-UA' };
+const DICTS = { uk, en };
+const LOCALES = { uk: 'uk-UA', en: 'en-GB' };
+
+// Languages offered in the settings, each named in itself
+export const LANGUAGES = [['uk', 'Українська'], ['en', 'English']];
 
 let lang = 'uk';
 let dict = uk;

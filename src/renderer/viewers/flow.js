@@ -32,12 +32,16 @@ export function createFlowViewer({ book, container, settings, location: initialL
 
   /* ---------- DOM ---------- */
 
+  // Hyphenation follows the book's language; books that don't declare one use Ukrainian rules
+  // as before, so switching the interface language doesn't change how a book is laid out
+  const bookLang = book.meta.lang || 'uk';
+
   // Scroll mode: the whole book as one strip
-  const content = h('article', { class: 'book-content', lang: book.meta.lang || null });
+  const content = h('article', { class: 'book-content', lang: bookLang });
   const scroller = h('div', { class: 'flow-scroller', tabindex: '-1' }, content);
 
   // Paged mode: one part laid out in columns
-  const strip = h('div', { class: 'book-content page-strip', lang: book.meta.lang || null });
+  const strip = h('div', { class: 'book-content page-strip', lang: bookLang });
   const clip = h('div', { class: 'page-clip' }, strip);
   const footer = h('div', { class: 'page-footer' });
   const pagedView = h('div', { class: 'paged-view' }, clip, footer);
