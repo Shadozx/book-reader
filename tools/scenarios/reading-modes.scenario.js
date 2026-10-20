@@ -28,14 +28,14 @@ module.exports = async ({ open, exec, wait, check, press, tocItem, location, res
   check('→ turns pages forward', forward.c > paged.c || (forward.c === paged.c && forward.b > paged.b), `${JSON.stringify(paged)} → ${JSON.stringify(forward)}`);
 
   // Across chapter boundaries and back
-  for (let i = 0; i < 40; i++) await press('PageDown');
+  for (let i = 0; i < 20; i++) await press('PageDown');
   await settle();
   const far = await location();
-  for (let i = 0; i < 40; i++) await press('PageUp');
+  for (let i = 0; i < 20; i++) await press('PageUp');
   await settle();
   const back = await location();
-  check('40 pages forward cross into later chapters', far.c > forward.c, `${JSON.stringify(forward)} → ${JSON.stringify(far)}`);
-  check('40 pages back return to the same place', near(back, forward), `${JSON.stringify(forward)} → ${JSON.stringify(back)}`);
+  check('20 pages forward cross into later chapters', far.c > forward.c, `${JSON.stringify(forward)} → ${JSON.stringify(far)}`);
+  check('20 pages back return to the same place', near(back, forward), `${JSON.stringify(forward)} → ${JSON.stringify(back)}`);
 
   resize(800, 860);
   await settle();

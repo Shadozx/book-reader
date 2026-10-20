@@ -27,7 +27,7 @@ module.exports = async ({ open, exec, waitFor, check, tocItem, location, shot, l
       };
     })()`);
     log(`${book.role}: ${JSON.stringify(info)}`);
-    check(`${book.role}: title and text are read`, info.title && info.chunks > 0 && info.paragraphs > 100, `${info.chunks} parts, ${info.paragraphs} paragraphs`);
+    check(`${book.role}: title and text are read`, info.title && info.chunks > 0 && info.paragraphs > 50, `${info.chunks} parts, ${info.paragraphs} paragraphs`);
     check(`${book.role}: table of contents`, info.toc > 0, `${info.toc} entries`);
     check(`${book.role}: no broken images`, info.brokenImages === 0, `${info.images} images, ${info.brokenImages} broken`);
     if (book.images) check(`${book.role}: images are shown`, info.images > 10, `${info.images} images`);

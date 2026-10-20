@@ -1,12 +1,16 @@
 // Tabs and themes: a book of every format opens in its own tab, themes switch for the whole window.
 // tabs-themes-restore continues this run and checks that everything comes back after a restart.
 
-module.exports = async ({ open, exec, check, shot }) => {
+// One book of every format (DjVu only if the optional sample is there)
+const roles = (has) => ['fb2', 'epub', 'pdf', ...(has('djvu') ? ['djvu'] : [])];
+
+module.exports = async ({ open, exec, check, skip, has, shot }) => {
   await shot('tabs-01-welcome');
-  for (const role of ['fb2', 'epub', 'pdf', 'djvuLarge']) await open(role);
+  if (!has('djvu')) skip('DjVu tab: no optional DjVu sample');
+  for (const role of roles(has)) await open(role);
 
   const formats = await exec(`app.tabs.map((t) => t.format).join()`);
-  check('every book opens in its own tab', formats === 'fb2,epub,pdf,djvu', formats);
+  check('every book opens in its own tab', formats === roles(has).join(), formats);
   check('the last opened book is the active tab', await exec(`app.activeTab === app.tabs.at(-1) && app.activeTab.tabEl.classList.contains('active')`));
   check('tabs show book titles', await exec(`app.tabs.every((t) => t.record.title && t.titleEl.textContent === t.record.title)`));
   await shot('tabs-02-light');

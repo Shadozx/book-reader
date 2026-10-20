@@ -9,6 +9,7 @@
     "postinstall": "node node_modules/electron/install.js",
     "dist": "node tools/build.js",
     "test": "node tools/run-tests.js",
+    "fixtures": "electron tools/make-fixtures.js",
     "icon": "electron tools/make-icon.js"
   },
   "dependencies": {

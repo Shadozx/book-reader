@@ -100,7 +100,8 @@ app.whenReady().then(async () => {
     crashed = true;
   }
   const passed = kit.results.filter((r) => r.ok).length;
-  if (kit.results.length) log(`RESULT ${passed}/${kit.results.length} passed`);
+  const skipped = kit.skipped.length ? `, ${kit.skipped.length} skipped` : '';
+  if (kit.results.length || kit.skipped.length) log(`RESULT ${passed}/${kit.results.length} passed${skipped}`);
   await wait(600); // let the state saving finish
   app.exit(crashed || passed < kit.results.length ? 1 : 0);
 });

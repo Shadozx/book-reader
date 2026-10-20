@@ -1,0 +1,13 @@
+{
+  "book.fb2": {
+    "chapters": 24,
+    "toc": 27,
+    "notes": 24,
+    "searchWord": "маяк",
+    "searchCount": 8
+  },
+  "book.pdf": {
+    "searchWord": "lighthouse",
+    "searchCount": 5
+  }
+}

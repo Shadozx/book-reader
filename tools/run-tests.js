@@ -67,9 +67,9 @@ function run(scenario) {
       buffer = lines.pop();
       for (const line of lines) {
         const text = line.replace(/^\[autotest\] /, '');
-        const m = text.match(/^RESULT (\d+)\/(\d+)/);
-        if (m) result = { passed: Number(m[1]), total: Number(m[2]) };
-        else if (/^(OK |FAIL|SCENARIO ERROR|APP LOAD ERROR|TIMEOUT|RENDERER CRASH)/.test(text)) console.log('   ' + text);
+        const m = text.match(/^RESULT (\d+)\/(\d+) passed(?:, (\d+) skipped)?/);
+        if (m) result = { passed: Number(m[1]), total: Number(m[2]), skipped: Number(m[3] ?? 0) };
+        else if (/^(OK |FAIL|SKIP|SCENARIO ERROR|APP LOAD ERROR|TIMEOUT|RENDERER CRASH)/.test(text)) console.log('   ' + text);
       }
     };
     child.stdout.on('data', onData);
@@ -96,13 +96,13 @@ async function main() {
     }
     console.log(`\n▸ ${scenario.name}`);
     const r = await run(scenario);
-    const counts = r.result ? `${r.result.passed}/${r.result.total}` : '';
+    const counts = r.result ? `${r.result.passed}/${r.result.total}${r.result.skipped ? ` (+${r.result.skipped} skipped)` : ''}` : '';
     summary.push({ name: scenario.name, status: r.ok ? 'passed' : 'FAILED', counts, seconds: r.seconds });
   }
 
-  console.log('\nScenario'.padEnd(26) + 'Result'.padEnd(10) + 'Checks'.padEnd(9) + 'Time');
+  console.log('\nScenario'.padEnd(26) + 'Result'.padEnd(10) + 'Checks'.padEnd(22) + 'Time');
   for (const s of summary) {
-    console.log(s.name.padEnd(25) + s.status.padEnd(10) + (s.counts ?? '').padEnd(9) + (s.seconds != null ? `${s.seconds} s` : ''));
+    console.log(s.name.padEnd(25) + s.status.padEnd(10) + (s.counts ?? '').padEnd(22) + (s.seconds != null ? `${s.seconds} s` : ''));
   }
   const failed = summary.filter((s) => s.status === 'FAILED');
   console.log(failed.length ? `\n${failed.length} scenario(s) failed: ${failed.map((s) => s.name).join(', ')}` : '\nAll scenarios passed.');

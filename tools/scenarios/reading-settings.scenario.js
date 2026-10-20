@@ -5,7 +5,8 @@ const TEXT_KEYS = ['fontFamily', 'fontSize', 'lineHeight', 'margin', 'maxWidth',
 
 module.exports = async ({ open, exec, wait, check, press, tocItem, location, t, shot }) => {
   const panel = `document.querySelector('.reading-popover')`;
-  const paragraph = `app.activeTab.paneEl.querySelector('.flow-scroller .book-content .chunk:not(.cover-chunk) p')`;
+  // A plain body paragraph: epigraphs, quotes and headings have their own sizes and indents
+  const paragraph = `[...app.activeTab.paneEl.querySelectorAll('.flow-scroller .book-content .chunk:not(.cover-chunk) p')].find((p) => !p.closest('blockquote, h1, h2, h3, h4, h5, h6, .annotation'))`;
   const style = (prop) => exec(`getComputedStyle(${paragraph}).${prop}`);
   // Change a slider the way a user does (an input event)
   const setSlider = (key, value) => exec(`(() => { const r = ${panel}.querySelector('input[data-key="${key}"]'); r.value = ${value}; r.dispatchEvent(new Event('input')); })()`);

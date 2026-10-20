@@ -1,5 +1,5 @@
 // PDF and DjVu: opening, drawing pages, table of contents, text layer, going to a page,
-// paged mode with spreads, zoom
+// paged mode with spreads, zoom. The generated PDF always; real scans and DjVu if the optional samples are there.
 
 const BOOKS = [
   { role: 'pdf', text: true },
@@ -9,9 +9,13 @@ const BOOKS = [
   { role: 'djvuExtra' },
 ];
 
-module.exports = async ({ open, exec, waitFor, check, press, pagesReady, location, shot, log }) => {
+module.exports = async ({ open, exec, waitFor, check, skip, has, press, pagesReady, location, shot, log }) => {
   await exec(`app.updateSettings({ mode: 'scroll' })`);
   for (const book of BOOKS) {
+    if (!has(book.role)) {
+      skip(`${book.role}: no optional sample book`);
+      continue;
+    }
     const started = Date.now();
     await open(book.role);
     const opened = Date.now() - started;
