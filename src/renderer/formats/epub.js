@@ -5,6 +5,7 @@
 // "path/to/chapter.xhtml#anchor" for an element with an id.
 
 import { loadJSZip } from '../lib.js';
+import { t } from '../i18n.js';
 
 const SPLIT_SIZE = 120_000;   // a chapter longer than this (in characters) is split into parts
 const PIECE_SIZE = 60_000;
@@ -54,7 +55,7 @@ function parseMarkup(text, preferXml = true) {
 
 function parseXmlDoc(text) {
   const doc = new DOMParser().parseFromString(text, 'application/xml');
-  if (doc.getElementsByTagName('parsererror').length) throw new Error('Пошкоджений службовий файл EPUB');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error(t('error.epubBrokenXml'));
   return doc;
 }
 
@@ -382,13 +383,13 @@ export async function parseEpub(bytes) {
   const getFile = (path) => zip.file(path) ?? zip.file(lowerIndex.get(path.toLowerCase()) ?? '\0');
   const readText = async (path) => {
     const file = getFile(path);
-    if (!file) throw new Error(`У книзі бракує файлу ${path}`);
+    if (!file) throw new Error(t('error.epubMissingFile', { path }));
     return file.async('string');
   };
 
   const container = parseXmlDoc(await readText('META-INF/container.xml'));
   const opfPath = byLocalName(container, 'rootfile')[0]?.getAttribute('full-path');
-  if (!opfPath) throw new Error('Не знайдено опис книги (content.opf)');
+  if (!opfPath) throw new Error(t('error.epubNoOpf'));
   const opf = parseXmlDoc(await readText(opfPath));
 
   // Manifest and chapter order
@@ -467,7 +468,7 @@ export async function parseEpub(bytes) {
     }
     chunks.push(...splitChunk(section));
   }
-  if (!chunks.length) throw new Error('У книзі не знайдено жодної глави');
+  if (!chunks.length) throw new Error(t('error.epubNoChapters'));
 
   // Substitute the real image URLs
   await Promise.all(chunks.flatMap((chunk) => [...chunk.querySelectorAll('[data-res]')].map(async (el) => {
@@ -487,7 +488,8 @@ export async function parseEpub(bytes) {
       urls.set(`cover:${coverItem.path}`, Promise.resolve(url));
       const cover = document.createElement('section');
       cover.className = `chunk cover-chunk ${scope}`;
-      cover.innerHTML = '<div class="cover"><img alt="Обкладинка"></div>';
+      cover.innerHTML = '<div class="cover"><img></div>';
+    cover.querySelector('img').alt = t('book.cover');
       cover.querySelector('img').src = url;
       chunks.unshift(cover);
     }
@@ -503,7 +505,7 @@ export async function parseEpub(bytes) {
       if (ncxItem) toc = parseNcxToc(parseXmlDoc(await readText(ncxItem.path)), ncxItem.path);
     }
   } catch (err) {
-    console.warn('EPUB: не вдалося прочитати зміст', err);
+    console.warn('EPUB: failed to read the TOC', err);
   }
 
   const styleEl = document.createElement('style');

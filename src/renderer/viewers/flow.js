@@ -6,6 +6,7 @@
 // Such a location doesn't depend on the font, window size or mode.
 
 import { h } from '../util.js';
+import { t } from '../i18n.js';
 
 // Blocks used to track the location (mostly "leaf" elements with text)
 const BLOCK_SELECTOR = [
@@ -477,7 +478,7 @@ export function createFlowViewer({ book, container, settings, location: initialL
     for (const n of nodes) body.append(n.cloneNode(true));
     body.querySelectorAll('[data-id]').forEach((e) => e.removeAttribute('data-id'));
     body.querySelector('.title')?.remove();
-    const goBtn = h('button', { class: 'note-goto' }, 'Перейти до примітки');
+    const goBtn = h('button', { class: 'note-goto' }, t('book.goToNote'));
     goBtn.addEventListener('click', () => goTo({ id: target.dataset.id }));
     notePopup = h('div', { class: 'note-popup book-content' }, h('div', { class: 'note-body' }, ...body.childNodes), goBtn);
     root.append(notePopup);

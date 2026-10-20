@@ -5,6 +5,7 @@
 // zoom in scroll mode and in paged mode.
 
 import { h } from '../util.js';
+import { t } from '../i18n.js';
 
 const GAP = 16;                  // gap between pages, px
 const MAX_RENDERED = 12;         // how many rendered pages to keep in memory
@@ -279,8 +280,9 @@ export function createFixedViewer({ source, container, settings, location: initi
       }
     } catch (err) {
       if (!isAbort(err)) {
-        console.error(`Не вдалося намалювати сторінку ${i + 1}`, err);
+        console.error(`Failed to render page ${i + 1}`, err);
         p.renderedWidth = width;   // don't retry forever
+        p.el.dataset.error = t('book.pageFailed', { n: i + 1 });
         p.el.classList.add('failed');
       }
     } finally {
@@ -302,7 +304,7 @@ export function createFixedViewer({ source, container, settings, location: initi
         await source.textLayer(i, p.textEl, pageScales[i]);
         onPageDecorated(i);
       } catch (err) {
-        console.warn('Текстовий шар', i + 1, err);
+        console.warn('Text layer', i + 1, err);
       }
     }
     if (source.links && !p.linksDone) {
@@ -332,7 +334,7 @@ export function createFixedViewer({ source, container, settings, location: initi
           p.el.append(layer);
         }
       } catch (err) {
-        console.warn('Посилання', i + 1, err);
+        console.warn('Links', i + 1, err);
       }
     }
   }

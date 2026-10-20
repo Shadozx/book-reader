@@ -2,6 +2,7 @@
 // Changes apply immediately; sliders update the book at most once per frame.
 
 import { h } from './util.js';
+import { t } from './i18n.js';
 
 // Fonts available on every Windows 10/11
 const FONTS = [
@@ -20,19 +21,19 @@ const FONTS = [
   ['Verdana, Geneva, sans-serif', 'Verdana'],
   ['Tahoma, Verdana, sans-serif', 'Tahoma'],
   ['"Trebuchet MS", sans-serif', 'Trebuchet MS'],
-  ['Consolas, "Courier New", monospace', 'Consolas (моноширинний)'],
+  ['Consolas, "Courier New", monospace', 'Consolas', { mono: true }],
 ];
 
-// Sliders: settings key, label, range, step, value format
+// Sliders: settings key (also the label's translation key), range, step, value format
 const SLIDERS = [
-  { key: 'fontSize', label: 'Розмір шрифту', min: 12, max: 40, step: 1, format: (v) => `${v} px` },
-  { key: 'lineHeight', label: 'Міжрядковий інтервал', min: 1, max: 2.4, step: 0.05, format: (v) => v.toFixed(2) },
-  { key: 'margin', label: 'Поля', min: 0, max: 160, step: 4, format: (v) => `${v} px` },
+  { key: 'fontSize', min: 12, max: 40, step: 1, format: (v) => `${v} px` },
+  { key: 'lineHeight', min: 1, max: 2.4, step: 0.05, format: (v) => v.toFixed(2) },
+  { key: 'margin', min: 0, max: 160, step: 4, format: (v) => `${v} px` },
   // The rightmost position means "unlimited" (maxWidth = 0)
-  { key: 'maxWidth', label: 'Ширина колонки', min: 400, max: 1600, step: 20, unlimited: 1600,
-    format: (v) => (v === 0 ? 'без обмеження' : `${v} px`) },
-  { key: 'indent', label: 'Абзацний відступ', min: 0, max: 4, step: 0.25, format: (v) => `${v} em` },
-  { key: 'paraSpacing', label: 'Відстань між абзацами', min: 0, max: 2, step: 0.1, format: (v) => `${v.toFixed(1)} em` },
+  { key: 'maxWidth', min: 400, max: 1600, step: 20, unlimited: 1600,
+    format: (v) => (v === 0 ? t('settings.unlimited') : `${v} px`) },
+  { key: 'indent', min: 0, max: 4, step: 0.25, format: (v) => `${v} em` },
+  { key: 'paraSpacing', min: 0, max: 2, step: 0.1, format: (v) => `${v.toFixed(1)} em` },
 ];
 
 // What the "Reset" button resets (theme and mode stay as they are)
@@ -85,7 +86,8 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
   };
 
   const slider = (spec) => {
-    const input = h('input', { type: 'range', min: spec.min, max: spec.max, step: spec.step, 'aria-label': spec.label });
+    const label = t(`settings.${spec.key}`);
+    const input = h('input', { type: 'range', min: spec.min, max: spec.max, step: spec.step, 'aria-label': label });
     const value = h('span', { class: 'slider-value' });
     const toSetting = (raw) => (spec.unlimited && raw >= spec.unlimited ? 0 : raw);
     const fromSetting = (v) => (spec.unlimited && v === 0 ? spec.unlimited : v);
@@ -99,8 +101,8 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
       input.value = next;
       input.dispatchEvent(new Event('input'));
     };
-    const minus = h('button', { type: 'button', class: 'step-btn', title: 'Менше', 'aria-label': `${spec.label}: менше` }, '−');
-    const plus = h('button', { type: 'button', class: 'step-btn', title: 'Більше', 'aria-label': `${spec.label}: більше` }, '+');
+    const minus = h('button', { type: 'button', class: 'step-btn', title: t('settings.less'), 'aria-label': t('settings.lessOf', { label }) }, '−');
+    const plus = h('button', { type: 'button', class: 'step-btn', title: t('settings.more'), 'aria-label': t('settings.moreOf', { label }) }, '+');
     minus.addEventListener('click', () => stepBy(-1));
     plus.addEventListener('click', () => stepBy(1));
     controls[spec.key] = {
@@ -110,12 +112,12 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
       },
     };
     return h('div', { class: 'setting' },
-      h('div', { class: 'setting-head' }, h('span', {}, spec.label), value),
+      h('div', { class: 'setting-head' }, h('span', {}, label), value),
       h('div', { class: 'slider-row' }, minus, input, plus));
   };
 
-  const fontSelect = h('select', { class: 'font-select', 'aria-label': 'Шрифт' },
-    FONTS.map(([family, name]) => h('option', { value: family, style: `font-family:${family}` }, name)));
+  const fontSelect = h('select', { class: 'font-select', 'aria-label': t('settings.font') },
+    FONTS.map(([family, name, opts]) => h('option', { value: family, style: `font-family:${family}` }, opts?.mono ? t('settings.fontMono', { name }) : name)));
   fontSelect.addEventListener('change', () => update({ fontFamily: fontSelect.value }));
   controls.fontFamily = {
     sync(v) {
@@ -125,33 +127,33 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
     },
   };
 
-  const resetBtn = h('button', { type: 'button', class: 'reset-btn' }, 'Скинути шрифт і відступи');
+  const resetBtn = h('button', { type: 'button', class: 'reset-btn' }, t('settings.resetText'));
   resetBtn.addEventListener('click', () => {
     update(Object.fromEntries(TEXT_KEYS.map((k) => [k, defaults[k]])));
     sync();
   });
 
   const textSection = h('section', { class: 'settings-section' },
-    h('h3', {}, 'Текст ', h('span', { class: 'muted' }, '· FB2 та EPUB')),
-    h('div', { class: 'setting' }, h('div', { class: 'setting-head' }, h('span', {}, 'Шрифт')), fontSelect),
+    h('h3', { 'data-dimmed': t('settings.notApplicable') }, `${t('settings.text')} `, h('span', { class: 'muted' }, t('settings.textFormats'))),
+    h('div', { class: 'setting' }, h('div', { class: 'setting-head' }, h('span', {}, t('settings.font'))), fontSelect),
     ...SLIDERS.map(slider),
     h('div', { class: 'setting' },
-      h('div', { class: 'setting-head' }, h('span', {}, 'Вирівнювання')),
-      segmented('align', [['justify', 'По ширині'], ['left', 'По лівому краю']])),
+      h('div', { class: 'setting-head' }, h('span', {}, t('settings.align'))),
+      segmented('align', [['justify', t('settings.alignJustify')], ['left', t('settings.alignLeft')]])),
   );
 
-  const el = h('div', { class: 'settings-popover', hidden: true, role: 'dialog', 'aria-label': 'Налаштування' },
+  const el = h('div', { class: 'settings-popover', hidden: true, role: 'dialog', 'aria-label': t('settings.title') },
     h('section', { class: 'settings-section' },
-      h('h3', {}, 'Тема'),
-      segmented('theme', [['light', 'Світла'], ['sepia', 'Сепія'], ['dark', 'Темна']]),
-      h('h3', {}, 'Режим читання'),
-      segmented('mode', [['scroll', 'Прокрутка'], ['paged', 'Сторінки']]),
-      checkbox('spread', 'Дві сторінки поруч на широкому екрані'),
+      h('h3', {}, t('settings.theme')),
+      segmented('theme', [['light', t('settings.themeLight')], ['sepia', t('settings.themeSepia')], ['dark', t('settings.themeDark')]]),
+      h('h3', {}, t('settings.mode')),
+      segmented('mode', [['scroll', t('settings.modeScroll')], ['paged', t('settings.modePaged')]]),
+      checkbox('spread', t('settings.spread')),
     ),
     textSection,
     h('section', { class: 'settings-section' },
-      h('h3', {}, 'Сторінки ', h('span', { class: 'muted' }, '· PDF та DjVu')),
-      checkbox('invertDark', 'Інвертувати сторінки в темній темі'),
+      h('h3', {}, `${t('settings.pages')} `, h('span', { class: 'muted' }, t('settings.pagesFormats'))),
+      checkbox('invertDark', t('settings.invertDark')),
     ),
     resetBtn,
     extra,

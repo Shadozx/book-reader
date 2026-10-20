@@ -7,26 +7,27 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Texts are filled in from locales/*.json by translateDom() in i18n.js -->
   <div id="app">
     <header id="tabbar">
-      <button id="btn-library" class="icon-btn" title="Бібліотека — книги, які пам'ятає програма (Ctrl+L)"></button>
+      <button id="btn-library" class="icon-btn" data-i18n-title="toolbar.library"></button>
       <div id="tabs" role="tablist"></div>
-      <button id="btn-new-tab" class="icon-btn" title="Відкрити книгу (Ctrl+O)"></button>
+      <button id="btn-new-tab" class="icon-btn" data-i18n-title="toolbar.open"></button>
     </header>
 
     <div id="toolbar" hidden>
-      <button id="btn-toc" class="icon-btn" title="Зміст і закладки (Ctrl+B)"></button>
+      <button id="btn-toc" class="icon-btn" data-i18n-title="toolbar.toc"></button>
       <div id="book-info">
         <div id="book-title"></div>
         <div id="book-author"></div>
       </div>
       <div class="spacer"></div>
       <div id="zoom-controls" class="group" hidden>
-        <button id="btn-zoom-out" class="icon-btn" title="Зменшити (Ctrl −)"></button>
-        <select id="zoom-select" title="Масштаб">
-          <option value="auto">Авто</option>
-          <option value="width">По ширині</option>
-          <option value="page">Цілком</option>
+        <button id="btn-zoom-out" class="icon-btn" data-i18n-title="toolbar.zoomOut"></button>
+        <select id="zoom-select" data-i18n-title="toolbar.zoom">
+          <option value="auto" data-i18n="toolbar.zoomAuto"></option>
+          <option value="width" data-i18n="toolbar.zoomWidth"></option>
+          <option value="page" data-i18n="toolbar.zoomPage"></option>
           <option value="0.5">50%</option>
           <option value="0.75">75%</option>
           <option value="1">100%</option>
@@ -36,54 +37,54 @@
           <option value="3">300%</option>
           <option value="custom" hidden></option>
         </select>
-        <button id="btn-zoom-in" class="icon-btn" title="Збільшити (Ctrl +)"></button>
+        <button id="btn-zoom-in" class="icon-btn" data-i18n-title="toolbar.zoomIn"></button>
       </div>
-      <div id="progress" title="Прогрес читання — клікніть, щоб перейти (Ctrl+G)"></div>
+      <div id="progress" data-i18n-title="toolbar.progress"></div>
       <div class="group segmented" id="mode-switch">
-        <button data-mode="scroll" class="icon-btn" title="Прокрутка"></button>
-        <button data-mode="paged" class="icon-btn" title="Посторінково"></button>
+        <button data-mode="scroll" class="icon-btn" data-i18n-title="toolbar.modeScroll"></button>
+        <button data-mode="paged" class="icon-btn" data-i18n-title="toolbar.modePaged"></button>
       </div>
-      <button id="btn-bookmark" class="icon-btn" title="Додати закладку (Ctrl+D)"></button>
-      <button id="btn-settings" class="icon-btn" title="Налаштування тексту"></button>
-      <button id="btn-theme" class="icon-btn" title="Змінити тему"></button>
+      <button id="btn-bookmark" class="icon-btn"></button>
+      <button id="btn-settings" class="icon-btn" data-i18n-title="toolbar.settings"></button>
+      <button id="btn-theme" class="icon-btn" data-i18n-title="toolbar.theme"></button>
       <div id="chapter-bar" hidden><span></span></div>
     </div>
 
     <div id="search-bar" hidden>
-      <input id="search-input" type="search" placeholder="Пошук у книзі" aria-label="Пошук у книзі" autocomplete="off" spellcheck="false">
+      <input id="search-input" type="search" data-i18n-placeholder="search.placeholder" data-i18n-aria-label="search.placeholder" autocomplete="off" spellcheck="false">
       <span id="search-count" aria-live="polite"></span>
-      <button id="btn-search-prev" class="icon-btn" title="Попередній збіг (Shift+Enter)"></button>
-      <button id="btn-search-next" class="icon-btn" title="Наступний збіг (Enter)"></button>
-      <button id="btn-search-close" class="icon-btn" title="Закрити пошук (Esc)"></button>
+      <button id="btn-search-prev" class="icon-btn" data-i18n-title="search.prev"></button>
+      <button id="btn-search-next" class="icon-btn" data-i18n-title="search.next"></button>
+      <button id="btn-search-close" class="icon-btn" data-i18n-title="search.close"></button>
     </div>
 
     <main id="main">
       <aside id="toc-panel" hidden>
         <div class="panel-tabs" role="tablist">
-          <button type="button" role="tab" data-panel="toc" class="on">Зміст</button>
-          <button type="button" role="tab" data-panel="bookmarks">Закладки</button>
+          <button type="button" role="tab" data-panel="toc" class="on" data-i18n="panel.toc"></button>
+          <button type="button" role="tab" data-panel="bookmarks" data-i18n="panel.bookmarks"></button>
         </div>
         <nav id="toc-list"></nav>
         <div id="bookmark-list" hidden></div>
       </aside>
       <div id="panes"></div>
-      <section id="library" hidden aria-label="Бібліотека"></section>
+      <section id="library" hidden data-i18n-aria-label="library.title"></section>
       <section id="welcome" hidden>
         <div class="welcome-inner">
-          <h1>Читалка</h1>
+          <h1 data-i18n="app.name"></h1>
           <p class="muted">FB2 · EPUB · PDF · DjVu</p>
-          <button id="btn-open-big" class="primary-btn">Відкрити книгу</button>
-          <p class="muted small">або перетягніть файли у вікно</p>
+          <button id="btn-open-big" class="primary-btn" data-i18n="welcome.open"></button>
+          <p class="muted small" data-i18n="welcome.drop"></p>
           <div id="recent-block" hidden>
-            <h2>Нещодавні</h2>
+            <h2 data-i18n="welcome.recent"></h2>
             <ul id="recent-list"></ul>
-            <button id="btn-library-all" class="link-btn" type="button">Уся бібліотека</button>
+            <button id="btn-library-all" class="link-btn" type="button"></button>
           </div>
         </div>
       </section>
     </main>
 
-    <div id="drop-overlay" hidden><div>Відпустіть, щоб відкрити</div></div>
+    <div id="drop-overlay" hidden><div data-i18n="drop.release"></div></div>
     <div id="toast" role="status" aria-live="polite"></div>
   </div>
 

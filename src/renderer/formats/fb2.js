@@ -7,6 +7,7 @@
 //   destroy()                — releases the image blob URLs
 
 import { loadJSZip } from '../lib.js';
+import { t } from '../i18n.js';
 
 const SPLIT_NESTED = 60_000;   // a section with subsections longer than this is split into its subsections
 const SPLIT_LEAF = 120_000;    // a section without subsections longer than this is cut into pieces
@@ -81,7 +82,7 @@ function parseXml(text) {
   if (!hasParseError(doc)) return doc;
 
   // Last resort: the lenient HTML parser. Rename the tags it treats specially.
-  console.warn('FB2: XML пошкоджений, використовую HTML-парсер');
+  console.warn('FB2: broken XML, falling back to the HTML parser');
   const renamed = text
     .replace(/<\?xml[^>]*\?>/, '')
     .replace(/<(\/?)(title|image|style|table|tr|td|th|body|binary|description|a)\b/gi, '<$1fb-$2');
@@ -400,7 +401,7 @@ async function unzipFb2(bytes) {
   const JSZip = await loadJSZip();
   const zip = await JSZip.loadAsync(bytes);
   const entry = Object.values(zip.files).find((f) => !f.dir && /\.fb2$/i.test(f.name));
-  if (!entry) throw new Error('В архіві не знайдено файлу .fb2');
+  if (!entry) throw new Error(t('error.fb2NoFile'));
   return entry.async('uint8array');
 }
 
@@ -423,7 +424,7 @@ export async function parseFb2(bytes) {
   // In HTML-parser mode the document's real <body> is not a book body; book bodies are renamed to fb-body
   const isHtml = doc.contentType === 'text/html';
   const bodies = all('body').filter((b) => !isHtml || b.localName === 'fb-body');
-  if (!bodies.length) throw new Error('У файлі немає тексту книги (елемента <body>)');
+  if (!bodies.length) throw new Error(t('error.fb2NoBody'));
   const isNotes = (b) => /^(notes|comments|footnotes)$/i.test(b.getAttribute('name') ?? '');
   const mainBodies = bodies.filter((b) => !isNotes(b));
   const noteBodies = bodies.filter(isNotes);
@@ -444,7 +445,7 @@ export async function parseFb2(bytes) {
   if (coverUrl && chunks.length) {
     const cover = document.createElement('div');
     cover.className = 'cover';
-    cover.append(Object.assign(document.createElement('img'), { src: coverUrl, alt: 'Обкладинка' }));
+    cover.append(Object.assign(document.createElement('img'), { src: coverUrl, alt: t('book.cover') }));
     const coverChunk = document.createElement('section');
     coverChunk.className = 'chunk cover-chunk';
     coverChunk.append(cover);
@@ -456,7 +457,7 @@ export async function parseFb2(bytes) {
     if (!noteChunks.length) continue;
     const id = conv.autoId();
     noteChunks[0].dataset.id ??= id;
-    toc.push({ label: firstChild(body, 'title')?.textContent.trim() || 'Примітки', target: { id: noteChunks[0].dataset.id } });
+    toc.push({ label: firstChild(body, 'title')?.textContent.trim() || t('book.notes'), target: { id: noteChunks[0].dataset.id } });
     chunks.push(...noteChunks);
   }
 

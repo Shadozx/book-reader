@@ -11,6 +11,7 @@
 //   destroy()
 
 import { loadPdfjs } from '../lib.js';
+import { t } from '../i18n.js';
 
 const BASE = 'app://bundle/node_modules/pdfjs-dist/';
 const PDF_TO_CSS = 96 / 72;   // 1 typographic point = 4/3 CSS pixels
@@ -34,7 +35,7 @@ export async function openPdf(bytes) {
   try {
     pdf = await task.promise;
   } catch (err) {
-    if (err?.name === 'PasswordException') throw new Error('PDF захищений паролем — такі файли поки не підтримуються');
+    if (err?.name === 'PasswordException') throw new Error(t('error.pdfPassword'));
     throw err;
   }
 
@@ -64,7 +65,7 @@ export async function openPdf(bytes) {
       }
       await Promise.all(batch);
     }
-  })().catch((err) => console.warn('PDF: не вдалося отримати розміри сторінок', err));
+  })().catch((err) => console.warn('PDF: failed to get page sizes', err));
 
   // Metadata
   let meta = { title: '', author: '' };
@@ -116,7 +117,7 @@ export async function openPdf(bytes) {
       }
     })();
   } catch (err) {
-    console.warn('PDF: не вдалося прочитати зміст', err);
+    console.warn('PDF: failed to read the TOC', err);
   }
 
   return {
@@ -129,7 +130,7 @@ export async function openPdf(bytes) {
 
     async render(i, widthPx, signal) {
       const page = await getPage(i);
-      if (signal.aborted) throw new DOMException('Скасовано', 'AbortError');
+      if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
       const base = page.getViewport({ scale: 1 });
       const viewport = page.getViewport({ scale: widthPx / base.width });
       const canvas = document.createElement('canvas');

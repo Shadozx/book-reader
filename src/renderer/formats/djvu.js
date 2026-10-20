@@ -5,6 +5,7 @@
 // If djvu-rs cannot handle a file, a fallback runs entirely on DjVu.js.
 
 import { loadDjVu } from '../lib.js';
+import { t } from '../i18n.js';
 
 export async function openDjvu(bytes) {
   // A copy for reading the TOC with DjVu.js (the original is transferred to the djvu-rs thread)
@@ -12,7 +13,7 @@ export async function openDjvu(bytes) {
   try {
     return await openWithDjvuRs(bytes, tocBytes);
   } catch (err) {
-    console.warn('djvu-rs не відкрив файл, використовую DjVu.js:', err);
+    console.warn('djvu-rs could not open the file, falling back to DjVu.js:', err);
     return openWithDjvuJs(tocBytes);
   }
 }
@@ -31,7 +32,7 @@ async function openWithDjvuRs(bytes, tocBytes) {
     else call.resolve(data.result);
   };
   worker.onerror = (e) => {
-    for (const call of pending.values()) call.reject(new Error(e.message || 'Помилка фонового потоку DjVu'));
+    for (const call of pending.values()) call.reject(new Error(e.message || t('error.djvuWorker')));
     pending.clear();
   };
   const call = (type, payload = {}, transfer = []) => new Promise((resolve, reject) => {
@@ -65,10 +66,10 @@ async function openWithDjvuRs(bytes, tocBytes) {
     },
 
     async render(i, widthPx, signal) {
-      if (signal.aborted) throw new DOMException('Скасовано', 'AbortError');
+      if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
       const dpi = Math.max(10, Math.round((widthPx / native[i].width) * native[i].dpi));
       const { width, height, pixels } = await call('render', { page: i, dpi });
-      if (signal.aborted) throw new DOMException('Скасовано', 'AbortError');
+      if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
@@ -106,7 +107,7 @@ async function openWithDjvuRs(bytes, tocBytes) {
 
     destroy() {
       worker.terminate();
-      for (const call of pending.values()) call.reject(new DOMException('Скасовано', 'AbortError'));
+      for (const call of pending.values()) call.reject(new DOMException('Cancelled', 'AbortError'));
       pending.clear();
     },
   };
@@ -116,7 +117,7 @@ async function openWithDjvuRs(bytes, tocBytes) {
     .then((toc) => {
       source.toc = toc;
     })
-    .catch((err) => console.warn('DjVu: не вдалося прочитати зміст', err));
+    .catch((err) => console.warn('DjVu: failed to read the TOC', err));
 
   return source;
 }
@@ -172,7 +173,7 @@ async function openWithDjvuJs(bytes) {
     await worker.createDocument(bytes.buffer);
   } catch (err) {
     worker.terminate();
-    throw new Error(`Не вдалося прочитати DjVu: ${err?.message ?? err}`);
+    throw new Error(t('error.djvuRead', { message: err?.message ?? err }));
   }
 
   const pageCount = await worker.doc.getPagesQuantity().run();
@@ -180,7 +181,7 @@ async function openWithDjvuJs(bytes) {
   try {
     rawSizes = await worker.doc.getPagesSizes().run();
   } catch (err) {
-    console.warn('DjVu: не вдалося отримати розміри сторінок', err);
+    console.warn('DjVu: failed to get page sizes', err);
   }
   const sizes = Array.from({ length: pageCount }, (_, i) => {
     const s = rawSizes[i] ?? rawSizes[0] ?? { width: 2480, height: 3508, dpi: 300 };
@@ -192,7 +193,7 @@ async function openWithDjvuJs(bytes) {
   try {
     toc = await readToc(worker);
   } catch (err) {
-    console.warn('DjVu: не вдалося прочитати зміст', err);
+    console.warn('DjVu: failed to read the TOC', err);
   }
 
   // Cache of decoded pages: page number → full-resolution ImageBitmap
@@ -226,9 +227,9 @@ async function openWithDjvuJs(bytes) {
     },
 
     async render(i, widthPx, signal) {
-      if (signal.aborted) throw new DOMException('Скасовано', 'AbortError');
+      if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
       const bitmap = await decode(i);
-      if (signal.aborted) throw new DOMException('Скасовано', 'AbortError');
+      if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(widthPx);
       canvas.height = Math.round((widthPx * bitmap.height) / bitmap.width);

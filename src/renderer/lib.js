@@ -1,4 +1,5 @@
 // On-demand loading of third-party libraries (only when the matching format is opened)
+import { t } from './i18n.js';
 
 const BASE = 'app://bundle';
 
@@ -25,7 +26,7 @@ export function loadDjVu() {
     const script = document.createElement('script');
     script.src = `${BASE}/vendor/djvu.js`;
     script.onload = () => resolve(window.DjVu);
-    script.onerror = () => reject(new Error('Не вдалося завантажити бібліотеку DjVu.js'));
+    script.onerror = () => reject(new Error(t('error.djvuLibrary')));
     document.head.append(script);
   });
   return djvuPromise;

@@ -5,6 +5,7 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
 const { spawn } = require('node:child_process');
+const { t } = require('./i18n');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const BOOK_EXTENSIONS = ['fb2', 'zip', 'epub', 'pdf', 'djvu', 'djv'];
@@ -79,7 +80,7 @@ function createWindow(bounds) {
     minWidth: 520,
     minHeight: 400,
     backgroundColor: '#1e1f22',
-    title: 'Читалка',
+    title: t('app.name'),
     icon: path.join(ROOT, 'build', 'icon.png'),
     autoHideMenuBar: true,
     show: false,
@@ -141,7 +142,7 @@ function registerProtocol() {
 
 function registerIpc() {
   ipcMain.handle('book:read', async (_e, filePath) => {
-    if (!isBookPath(filePath)) throw new Error('Непідтримуваний тип файлу');
+    if (!isBookPath(filePath)) throw new Error(t('error.unsupportedFile'));
     const data = await fs.readFile(filePath);
     const stat = await fs.stat(filePath);
     return { data, size: stat.size, mtime: stat.mtimeMs };
@@ -158,11 +159,11 @@ function registerIpc() {
 
   ipcMain.handle('dialog:open', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'Відкрити книгу',
+      title: t('dialog.openTitle'),
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: 'Книги', extensions: BOOK_EXTENSIONS },
-        { name: 'Усі файли', extensions: ['*'] },
+        { name: t('dialog.books'), extensions: BOOK_EXTENSIONS },
+        { name: t('dialog.allFiles'), extensions: ['*'] },
       ],
     });
     return result.canceled ? [] : result.filePaths;
@@ -186,14 +187,14 @@ function registerIpc() {
   ipcMain.handle('dialog:confirm', async (_e, { title, message, detail, ok }) => {
     if (process.env.AUTOTEST_AUTOCONFIRM) return true;
     const { response } = await dialog.showMessageBox(mainWindow, {
-      type: 'warning', title, message, detail, buttons: [ok, 'Скасувати'], defaultId: 1, cancelId: 1, noLink: true,
+      type: 'warning', title, message, detail, buttons: [ok, t('dialog.cancel')], defaultId: 1, cancelId: 1, noLink: true,
     });
     return response === 0;
   });
 
   ipcMain.handle('dialog:info', async (_e, { title, message, detail }) => {
     if (process.env.AUTOTEST_AUTOCONFIRM) return;
-    await dialog.showMessageBox(mainWindow, { type: 'info', title, message, detail, buttons: ['Зрозуміло'], noLink: true });
+    await dialog.showMessageBox(mainWindow, { type: 'info', title, message, detail, buttons: [t('dialog.ok')], noLink: true });
   });
 
   // "Reset all": delete the state file and reload the window so the app starts from scratch
@@ -227,10 +228,10 @@ function registerIpc() {
       start = app.getPath('documents');
     }
     const file = process.env.AUTOTEST_DIALOG_FILE ?? (await dialog.showOpenDialog(mainWindow, {
-      title: `Де тепер книга «${path.basename(oldPath)}»?`,
+      title: t('dialog.locateTitle', { name: path.basename(oldPath) }),
       defaultPath: start,
       properties: ['openFile'],
-      filters: [{ name: 'Книги', extensions: ext ? [ext] : BOOK_EXTENSIONS }, { name: 'Усі книги', extensions: BOOK_EXTENSIONS }],
+      filters: [{ name: t('dialog.books'), extensions: ext ? [ext] : BOOK_EXTENSIONS }, { name: t('dialog.allBooks'), extensions: BOOK_EXTENSIONS }],
     })).filePaths?.[0];
     return file && isBookPath(file) ? file : null;
   });
@@ -240,9 +241,9 @@ function registerIpc() {
   ipcMain.handle('data:export', async (_e, state) => {
     await fs.mkdir(backupDir(), { recursive: true }).catch(() => {});
     const file = process.env.AUTOTEST_DIALOG_FILE ?? (await dialog.showSaveDialog(mainWindow, {
-      title: 'Експортувати дані «Читалки»',
+      title: t('dialog.exportTitle'),
       defaultPath: path.join(backupDir(), `chytalka-backup-${localDate()}.json`),
-      filters: [{ name: 'Резервна копія «Читалки»', extensions: ['json'] }],
+      filters: [{ name: t('dialog.backupFile'), extensions: ['json'] }],
     })).filePath;
     if (!file) return null;
     await fs.writeFile(file, JSON.stringify(makeBackup(state), null, 2), 'utf8');
@@ -255,21 +256,21 @@ function registerIpc() {
   ipcMain.handle('data:import-read', async () => {
     pendingImport = null;
     const file = process.env.AUTOTEST_DIALOG_FILE ?? (await dialog.showOpenDialog(mainWindow, {
-      title: 'Імпортувати дані «Читалки»',
+      title: t('dialog.importTitle'),
       defaultPath: (await fs.stat(backupDir()).then(() => backupDir(), () => app.getPath('documents'))),
       properties: ['openFile'],
-      filters: [{ name: 'Резервна копія «Читалки»', extensions: ['json'] }, { name: 'Усі файли', extensions: ['*'] }],
+      filters: [{ name: t('dialog.backupFile'), extensions: ['json'] }, { name: t('dialog.allFiles'), extensions: ['*'] }],
     })).filePaths?.[0];
     if (!file) return null;
     let data;
     try {
       data = JSON.parse((await fs.readFile(file, 'utf8')).replace(/^\uFEFF/, ''));
     } catch {
-      return { error: 'Файл пошкоджений або це не файл даних (JSON).' };
+      return { error: t('dialog.importBroken') };
     }
     // Accept both an export file and a raw state.json
     const state = data?.format === BACKUP_FORMAT ? data.state : data;
-    if (!isValidState(state)) return { error: 'Це не резервна копія «Читалки».' };
+    if (!isValidState(state)) return { error: t('dialog.importNotBackup') };
     pendingImport = cleanState(state);
     const books = Object.values(pendingImport.books ?? {});
     return {
@@ -323,7 +324,8 @@ const AUTO_BACKUP_KEEP = 10;                 // how many days of auto backups to
 const AUTO_BACKUP_EVERY = 5 * 60 * 1000;     // refresh the daily backup at most once every 5 minutes
 let lastAutoBackup = 0;
 
-// Documents\Читалка (autotests override it with CHYTALKA_BACKUP_DIR so they don't write to the real Documents)
+// Documents\Читалка in any interface language, so the folder doesn't change when the language does
+// (autotests override it with CHYTALKA_BACKUP_DIR so they don't write to the real Documents)
 const backupDir = () => process.env.CHYTALKA_BACKUP_DIR ?? path.join(app.getPath('documents'), 'Читалка');
 
 function localDate(date = new Date()) {
@@ -351,7 +353,7 @@ async function autoBackup(state) {
     const old = (await fs.readdir(dir)).filter((f) => AUTO_BACKUP_RE.test(f)).sort().slice(0, -AUTO_BACKUP_KEEP);
     for (const f of old) await fs.rm(path.join(dir, f), { force: true });
   } catch (err) {
-    console.warn('Не вдалося зберегти автоматичну резервну копію', err);
+    console.warn('Failed to save the automatic backup', err);
   }
 }
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);

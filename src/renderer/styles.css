@@ -641,7 +641,7 @@ button, select {
   color: #b8b8b8;
   font: 600 28px var(--ui-font);
 }
-.fixed-page.failed::before { content: 'Не вдалося показати сторінку ' attr(data-num); font-size: 14px; color: #d0473b; }
+.fixed-page.failed::before { content: attr(data-error); font-size: 14px; color: #d0473b; }
 
 .fixed-page canvas {
   position: absolute;
@@ -762,7 +762,7 @@ button, select {
 }
 .settings-section h3 .muted { font-weight: 500; text-transform: none; letter-spacing: 0; }
 .settings-section.dimmed > :not(h3) { opacity: 0.45; }
-.settings-section.dimmed h3::after { content: ' — не діє для цієї книги'; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.settings-section.dimmed h3::after { content: ' — ' attr(data-dimmed); font-weight: 500; text-transform: none; letter-spacing: 0; }
 
 .seg {
   display: flex;

@@ -1,5 +1,6 @@
 import { h, icon, debounce, basename, stripExtension } from './util.js';
 import { createSettingsPanel } from './settings-panel.js';
+import { t, tNodes, locale, translateDom } from './i18n.js';
 
 const api = window.api;
 
@@ -131,7 +132,7 @@ class Tab {
 
     this.titleEl = h('span', { class: 'tab-title' }, this.record.title);
     this.formatEl = h('span', { class: 'tab-format' });
-    const closeBtn = h('button', { class: 'icon-btn', title: 'Закрити (Ctrl+W)' }, icon('x', 14));
+    const closeBtn = h('button', { class: 'icon-btn', title: t('tab.close') }, icon('x', 14));
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       closeTab(this);
@@ -159,7 +160,7 @@ class Tab {
   }
 
   async load() {
-    this.showMessage('loading', 'Відкриваю книгу…');
+    this.showMessage('loading', t('tab.opening'));
     try {
       const { data } = await api.readBook(this.path);
       const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
@@ -178,8 +179,7 @@ class Tab {
       });
 
       if (!this.viewer) {
-        const mb = (bytes.byteLength / 1048576).toFixed(1);
-        this.showMessage('info', `Формат ${this.format.toUpperCase()} розпізнано (${mb} МБ).`, 'Показ цього формату з’явиться на наступних етапах.');
+        this.showMessage('info', t('tab.unsupported', { format: this.format.toUpperCase() }));
       } else {
         const { title, author } = this.viewer.meta;
         if (title) this.record.title = title;
@@ -189,7 +189,7 @@ class Tab {
     } catch (err) {
       console.error(err);
       this.viewer = null;
-      this.showMessage('error', 'Не вдалося відкрити книгу', err?.message ?? String(err));
+      this.showMessage('error', t('tab.openFailed'), err?.message ?? String(err));
     }
     this.record.lastOpened = Date.now();
     saveStore();
@@ -212,7 +212,7 @@ class Tab {
     try {
       this.viewer?.destroy();
     } catch (err) {
-      console.error('Помилка під час закриття книги', err);
+      console.error('Failed to close the book', err);
     }
     this.tabEl.remove();
     this.paneEl.remove();
@@ -292,12 +292,12 @@ function updateToolbar() {
   if (!tab) {
     els.tocPanel.hidden = true;
     renderRecent();
-    document.title = 'Читалка';
+    document.title = t('app.name');
     return;
   }
   els.title.textContent = tab.record.title;
   els.author.textContent = tab.record.author ?? '';
-  document.title = `${tab.record.title} — Читалка`;
+  document.title = `${tab.record.title} — ${t('app.name')}`;
 
   const viewer = tab.viewer;
   els.zoomControls.hidden = viewer?.kind !== 'fixed';
@@ -345,11 +345,11 @@ function trackReadingSpeed(tab) {
 }
 
 function formatMinutes(minutes) {
-  if (minutes < 1) return 'менше хвилини';
-  if (minutes < 60) return `≈ ${Math.round(minutes)} хв`;
+  if (minutes < 1) return t('time.underMinute');
+  if (minutes < 60) return t('time.minutes', { m: Math.round(minutes) });
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
-  return `≈ ${h} год${m ? ` ${m} хв` : ''}`;
+  return m ? t('time.hoursMinutes', { h, m }) : t('time.hours', { h });
 }
 
 // Second line under the title: current chapter and how much of it is read (or the author if there is no TOC)
@@ -365,21 +365,21 @@ function updateChapter() {
     return;
   }
   const percent = Math.floor(info.progress * 100);
-  const detail = info.pages ? `стор. ${info.page} з ${info.pages}` : `прочитано ${percent}%`;
+  const detail = info.pages ? t('chapter.pageOf', { page: info.page, pages: info.pages }) : t('chapter.read', { percent });
   const speed = store.reading[info.unit];
-  const left = info.remaining > 0 && speed ? ` · ще ${formatMinutes(info.remaining / speed)}` : '';
+  const left = info.remaining > 0 && speed ? ` · ${t('chapter.left', { time: formatMinutes(info.remaining / speed) })}` : '';
   const speedText = info.unit === 'pages'
-    ? `${(1 / speed).toFixed(1)} хв на сторінку`
-    : `${Math.round(speed)} знаків за хвилину`;
+    ? t('chapter.minPerPage', { value: (1 / speed).toFixed(1) })
+    : t('chapter.charsPerMin', { value: Math.round(speed) });
   els.author.textContent = `${info.label} · ${detail}${left}`;
   els.author.title = [
-    `Розділ: ${info.label}`,
+    t('chapter.tipChapter', { label: info.label }),
     `${detail}${info.pages ? ` (${percent}%)` : ''}`,
-    left && `До кінця розділу ${formatMinutes(info.remaining / speed)} (ваша швидкість: ${speedText})`,
-    author && `Автор: ${author}`,
+    left && t('chapter.tipLeft', { time: formatMinutes(info.remaining / speed), speed: speedText }),
+    author && t('chapter.tipAuthor', { author }),
   ].filter(Boolean).join('\n');
   bar.hidden = false;
-  bar.title = `Прочитано ${percent}% розділу`;
+  bar.title = t('chapter.bar', { percent });
   bar.firstElementChild.style.width = `${info.progress * 100}%`;
 }
 
@@ -430,7 +430,7 @@ function renderToc() {
       return [link, item.children ? build(item.children, depth + 1) : null];
     });
   els.tocList.replaceChildren(...build(toc, 0).flat(Infinity).filter(Boolean));
-  if (!toc.length) els.tocList.replaceChildren(h('p', { class: 'panel-empty' }, 'У цій книзі немає змісту.'));
+  if (!toc.length) els.tocList.replaceChildren(h('p', { class: 'panel-empty' }, t('panel.tocEmpty')));
 }
 
 function setTheme(theme) {
@@ -445,7 +445,7 @@ function updateThemeButton() {
   const next = { light: 'sepia', sepia: 'dark', dark: 'light' }[store.settings.theme];
   const btn = document.getElementById('btn-theme');
   btn.replaceChildren(icon({ light: 'sun', sepia: 'coffee', dark: 'moon' }[store.settings.theme]));
-  btn.title = `Тема: ${{ light: 'світла', sepia: 'сепія', dark: 'темна' }[store.settings.theme]} (натисніть — ${{ light: 'світла', sepia: 'сепія', dark: 'темна' }[next]})`;
+  btn.title = t('toolbar.themeState', { current: t(`theme.${store.settings.theme}`), next: t(`theme.${next}`) });
 }
 
 function setMode(mode) {
@@ -481,11 +481,11 @@ async function renderRecent() {
     .slice(0, 20);
   els.recentBlock.hidden = recent.length === 0;
   const total = Object.values(store.books).filter((b) => b.lastOpened || b.location).length;
-  document.getElementById('btn-library-all').textContent = `Уся бібліотека (${total})`;
+  document.getElementById('btn-library-all').textContent = `${t('welcome.libraryAll')} (${total})`;
   const items = await Promise.all(
     recent.map(async ([path, book]) => {
       const exists = await api.bookExists(path);
-      const removeBtn = h('button', { class: 'icon-btn', title: 'Прибрати зі списку' }, icon('x', 14));
+      const removeBtn = h('button', { class: 'icon-btn', title: t('welcome.removeRecent') }, icon('x', 14));
       removeBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         delete store.books[path];
@@ -494,7 +494,7 @@ async function renderRecent() {
       });
       const item = h(
         'li',
-        { class: `recent-item${exists ? '' : ' missing'}`, title: exists ? path : `Файл не знайдено: ${path}` },
+        { class: `recent-item${exists ? '' : ' missing'}`, title: exists ? path : t('welcome.fileMissing', { path }) },
         h('span', { class: 'badge' }, book.format ?? '?'),
         h('div', { class: 'recent-main' },
           h('div', { class: 'recent-title' }, book.title),
@@ -586,15 +586,15 @@ let settingsPanel = null;
 function resetSettings() {
   updateSettings({ ...DEFAULT_SETTINGS });
   settingsPanel.sync();
-  toast('Налаштування скинуто');
+  toast(t('data.settingsReset'));
 }
 
 async function clearHistory() {
   const ok = await api.confirm({
-    title: 'Очистити історію',
-    message: 'Очистити історію читання?',
-    detail: 'Буде видалено список нещодавніх книг, місця читання та закладки всіх книг. Відкриті вкладки закриються.\n\nСамі файли книг не зачіпаються. Автоматичні резервні копії в «Документи\\Читалка» лишаються — з них можна відновитися через «Імпортувати дані…».',
-    ok: 'Очистити',
+    title: t('data.clearTitle'),
+    message: t('data.clearMessage'),
+    detail: t('data.clearDetail'),
+    ok: t('data.clearOk'),
   });
   if (!ok) return;
   for (const tab of [...tabs]) closeTab(tab);
@@ -603,15 +603,15 @@ async function clearHistory() {
   saveStore.flush();
   setSettingsOpen(false);
   renderRecent();
-  toast('Історію читання очищено');
+  toast(t('data.cleared'));
 }
 
 async function resetAll() {
   const ok = await api.confirm({
-    title: 'Скинути все',
-    message: 'Скинути всі дані програми?',
-    detail: 'Налаштування, історія читання, закладки, вкладки та швидкість читання повернуться до початкового стану, а програма перезапуститься.\n\nСамі файли книг не зачіпаються. Автоматичні резервні копії в «Документи\\Читалка» лишаються — з них можна відновитися через «Імпортувати дані…».',
-    ok: 'Скинути все',
+    title: t('data.resetTitle'),
+    message: t('data.resetMessage'),
+    detail: t('data.resetDetail'),
+    ok: t('data.resetOk'),
   });
   if (ok) await api.resetAll();
 }
@@ -621,22 +621,22 @@ async function exportData() {
   for (const tab of tabs) tab.onLocationChange();
   const state = { settings: store.settings, books: store.books, session: store.session, reading: store.reading };
   const file = await api.exportData(state);
-  if (file) toast(`Дані збережено: ${basename(file)}`);
+  if (file) toast(t('data.exported', { file: basename(file) }));
 }
 
 async function importData() {
   const info = await api.importRead();
   if (!info) return;
   if (info.error) {
-    await api.info({ title: 'Імпорт даних', message: 'Не вдалося імпортувати дані', detail: info.error });
+    await api.info({ title: t('data.importTitle'), message: t('data.importFailed'), detail: info.error });
     return;
   }
-  const created = info.exported ? new Date(info.exported).toLocaleString('uk-UA') : 'невідомо';
+  const created = info.exported ? new Date(info.exported).toLocaleString(locale()) : t('data.importUnknownDate');
   const ok = await api.confirm({
-    title: 'Імпорт даних',
-    message: 'Замінити поточні дані даними з резервної копії?',
-    detail: `Файл: ${info.file}\nСтворено: ${created}\nКниг: ${info.books}, закладок: ${info.bookmarks}\n\nПоточні налаштування, історію читання та закладки буде замінено, програма перезапуститься. Файли книг не зачіпаються.`,
-    ok: 'Імпортувати',
+    title: t('data.importTitle'),
+    message: t('data.importMessage'),
+    detail: t('data.importDetail', { file: info.file, created, books: info.books, bookmarks: info.bookmarks }),
+    ok: t('data.importOk'),
   });
   if (!ok) return;
   saveStore.cancel();
@@ -647,17 +647,17 @@ async function uninstallApp() {
   const { installed } = await api.uninstallInfo();
   if (!installed) {
     await api.info({
-      title: 'Видалення програми',
-      message: 'Видалення доступне лише у встановленій програмі.',
-      detail: 'Зараз «Читалка» запущена з папки проєкту (npm start). Щоб прибрати її, достатньо видалити папку проєкту.',
+      title: t('data.uninstallTitle'),
+      message: t('data.uninstallDevMessage'),
+      detail: t('data.uninstallDevDetail'),
     });
     return;
   }
   const ok = await api.confirm({
-    title: 'Видалити програму',
-    message: 'Видалити «Читалку» з комп\'ютера?',
-    detail: 'Програма закриється й відкриється стандартний деінсталятор Windows. Він спитає, чи видаляти також ваші налаштування та закладки.\n\nФайли книг не видаляються.',
-    ok: 'Видалити',
+    title: t('data.uninstallConfirmTitle'),
+    message: t('data.uninstallMessage'),
+    detail: t('data.uninstallDetail'),
+    ok: t('data.uninstallOk'),
   });
   if (ok) await api.uninstall();
 }
@@ -670,27 +670,27 @@ function createDataSection() {
     btn.addEventListener('click', handler);
     return btn;
   };
-  const folder = h('button', { type: 'button', class: 'link-btn' }, 'Відкрити папку з даними');
+  const folder = h('button', { type: 'button', class: 'link-btn' }, t('data.openFolder'));
   folder.addEventListener('click', () => api.openDataFolder());
   dataControls.autoBackup = h('input', { type: 'checkbox' });
   dataControls.autoBackup.addEventListener('change', () => updateSettings({ autoBackup: dataControls.autoBackup.checked }));
   dataControls.backupDir = h('div', { class: 'backup-dir muted small' });
   api.backupInfo().then(({ dir }) => { dataControls.backupDir.textContent = dir; });
-  const backups = h('button', { type: 'button', class: 'link-btn' }, 'Відкрити папку з резервними копіями');
+  const backups = h('button', { type: 'button', class: 'link-btn' }, t('data.openBackups'));
   backups.addEventListener('click', () => api.openBackups());
   return h('section', { class: 'settings-section data-section' },
-    h('h3', {}, 'Дані'),
-    button('Скинути налаштування', resetSettings),
-    button('Очистити історію читання…', clearHistory),
-    button('Скинути все й перезапустити…', resetAll, true),
-    button('Експортувати дані…', exportData),
-    button('Імпортувати дані…', importData),
-    h('label', { class: 'check' }, dataControls.autoBackup, h('span', {}, 'Автоматична резервна копія щодня (останні 10 днів)')),
+    h('h3', {}, t('data.title')),
+    button(t('data.resetSettings'), resetSettings),
+    button(t('data.clearHistory'), clearHistory),
+    button(t('data.resetAll'), resetAll, true),
+    button(t('data.export'), exportData),
+    button(t('data.import'), importData),
+    h('label', { class: 'check' }, dataControls.autoBackup, h('span', {}, t('data.autoBackup'))),
     dataControls.backupDir,
     backups,
     folder,
-    h('h3', {}, 'Програма'),
-    button('Видалити програму…', uninstallApp, true),
+    h('h3', {}, t('data.app')),
+    button(t('data.uninstall'), uninstallApp, true),
   );
 }
 
@@ -719,7 +719,7 @@ function setSettingsOpen(open) {
 function changeFontSize(delta) {
   const size = Math.min(40, Math.max(12, store.settings.fontSize + delta));
   if (size !== store.settings.fontSize) updateSettings({ fontSize: size });
-  toast(`Шрифт: ${size} px`);
+  toast(t('toast.font', { size }));
 }
 
 // Ctrl +/−: font size in text books, zoom in PDF/DjVu
@@ -729,7 +729,7 @@ function zoomOrFont(direction) {
   if (viewer.kind === 'fixed') {
     if (direction > 0) viewer.zoomIn();
     else viewer.zoomOut();
-    toast(`Масштаб: ${Math.round(viewer.scale * 100)}%`);
+    toast(t('toast.zoom', { percent: Math.round(viewer.scale * 100) }));
   } else {
     changeFontSize(direction);
   }
@@ -740,10 +740,10 @@ function resetZoomOrFont() {
   if (!viewer) return;
   if (viewer.kind === 'fixed') {
     viewer.setZoom(store.settings.mode === 'paged' ? 'page' : 'auto');
-    toast(store.settings.mode === 'paged' ? 'Масштаб: цілком' : 'Масштаб: авто');
+    toast(t(store.settings.mode === 'paged' ? 'toast.zoomPage' : 'toast.zoomAuto'));
   } else {
     updateSettings({ fontSize: DEFAULT_SETTINGS.fontSize });
-    toast(`Шрифт: ${DEFAULT_SETTINGS.fontSize} px`);
+    toast(t('toast.font', { size: DEFAULT_SETTINGS.fontSize }));
   }
 }
 
@@ -798,24 +798,15 @@ function toggleLibrary() {
   else openLibrary();
 }
 
-// Ukrainian plural forms: one (1, 21), few (2–4, 22), many (5–20, 11, 25)
-function plural(n, one, few, many) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
-}
-
 function formatAgo(time) {
-  if (!time) return 'ще не відкривали';
+  if (!time) return t('library.neverOpened');
   const date = new Date(time);
   const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(time).setHours(0, 0, 0, 0)) / 86400000);
-  const hm = date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
-  if (days <= 0) return `сьогодні о ${hm}`;
-  if (days === 1) return `вчора о ${hm}`;
-  if (days < 7) return `${days} дн. тому`;
-  return date.toLocaleDateString('uk-UA');
+  const hm = date.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+  if (days <= 0) return t('library.today', { time: hm });
+  if (days === 1) return t('library.yesterday', { time: hm });
+  if (days < 7) return t('library.daysAgo', { days });
+  return date.toLocaleDateString(locale());
 }
 
 // The book was moved: all its data (reading position, bookmarks) moves to the new path
@@ -832,7 +823,7 @@ function setupLibrary() {
   document.getElementById('btn-library').addEventListener('click', toggleLibrary);
   document.getElementById('btn-library-all').addEventListener('click', openLibrary);
 
-  library.search = h('input', { class: 'library-search', type: 'search', placeholder: 'Пошук за назвою, автором чи шляхом', 'aria-label': 'Пошук у бібліотеці' });
+  library.search = h('input', { class: 'library-search', type: 'search', placeholder: t('library.search'), 'aria-label': t('library.searchLabel') });
   library.search.addEventListener('input', () => {
     library.query = library.search.value.trim().toLowerCase();
     renderLibrary();
@@ -843,21 +834,21 @@ function setupLibrary() {
       e.stopPropagation();
     }
   });
-  const sort = h('select', { class: 'library-sort', 'aria-label': 'Сортування' },
-    h('option', { value: 'recent' }, 'Нещодавні'),
-    h('option', { value: 'title' }, 'За назвою'),
-    h('option', { value: 'progress' }, 'За прогресом'));
+  const sort = h('select', { class: 'library-sort', 'aria-label': t('library.sort') },
+    h('option', { value: 'recent' }, t('library.sortRecent')),
+    h('option', { value: 'title' }, t('library.sortTitle')),
+    h('option', { value: 'progress' }, t('library.sortProgress')));
   sort.addEventListener('change', () => {
     library.sort = sort.value;
     renderLibrary();
   });
-  const close = h('button', { class: 'icon-btn', title: 'Закрити (Esc)' }, icon('x'));
+  const close = h('button', { class: 'icon-btn', title: t('library.close') }, icon('x'));
   close.addEventListener('click', closeLibrary);
   library.summary = h('div', { class: 'library-summary' });
   library.list = h('div', { class: 'library-list' });
   libraryEl.append(
     h('div', { class: 'library-inner' },
-      h('div', { class: 'library-head' }, h('h1', {}, 'Бібліотека'), library.search, sort, close),
+      h('div', { class: 'library-head' }, h('h1', {}, t('library.title')), library.search, sort, close),
       library.summary,
       library.list),
   );
@@ -873,20 +864,17 @@ async function renderLibrary() {
   const bookmarks = items.reduce((sum, x) => sum + (x.book.bookmarks?.length ?? 0), 0);
   const withPlace = items.filter((x) => x.book.location).length;
   const missing = items.filter((x) => !x.exists).length;
-  const dataLink = h('button', { type: 'button', class: 'link-btn' }, 'папка з даними');
+  const dataLink = h('button', { type: 'button', class: 'link-btn' }, t('library.dataFolder'));
   dataLink.addEventListener('click', () => api.openDataFolder());
-  const backupsLink = h('button', { type: 'button', class: 'link-btn' }, 'резервні копії');
+  const backupsLink = h('button', { type: 'button', class: 'link-btn' }, t('library.backups'));
   backupsLink.addEventListener('click', () => api.openBackups());
   library.summary.replaceChildren(
     h('div', { class: 'library-stats' },
-      h('span', {}, h('b', {}, items.length), ` ${plural(items.length, 'книга', 'книги', 'книг')}`),
-      h('span', {}, h('b', {}, withPlace), ' з місцем читання'),
-      h('span', {}, h('b', {}, bookmarks), ` ${plural(bookmarks, 'закладка', 'закладки', 'закладок')}`),
-      missing ? h('span', { class: 'warn' }, h('b', {}, missing), ` ${plural(missing, 'файл', 'файли', 'файлів')} не знайдено`) : null),
-    h('p', { class: 'muted' },
-      'Для кожної книги програма пам\'ятає шлях до файлу, назву й автора, місце читання, прогрес і закладки. ',
-      'Самі книги не копіюються: якщо файл перемістити, натисніть «Знайти файл…» — і дані перейдуть на нове місце. ',
-      dataLink, ' · ', backupsLink),
+      h('span', {}, h('b', {}, items.length), ` ${t('library.books', { n: items.length })}`),
+      h('span', {}, h('b', {}, withPlace), ` ${t('library.withPlace')}`),
+      h('span', {}, h('b', {}, bookmarks), ` ${t('library.bookmarks', { n: bookmarks })}`),
+      missing ? h('span', { class: 'warn' }, h('b', {}, missing), ` ${t('library.missing', { n: missing })}`) : null),
+    h('p', { class: 'muted' }, `${t('library.about')} `, dataLink, ' · ', backupsLink),
   );
 
   if (library.query) {
@@ -894,13 +882,13 @@ async function renderLibrary() {
   }
   const by = {
     recent: (a, b) => (b.book.lastOpened ?? 0) - (a.book.lastOpened ?? 0),
-    title: (a, b) => (a.book.title ?? '').localeCompare(b.book.title ?? '', 'uk'),
+    title: (a, b) => (a.book.title ?? '').localeCompare(b.book.title ?? '', locale()),
     progress: (a, b) => (b.book.progress ?? 0) - (a.book.progress ?? 0),
   };
   items.sort(by[library.sort]);
 
   if (!items.length) {
-    library.list.replaceChildren(h('p', { class: 'panel-empty' }, entries.length ? 'Нічого не знайдено.' : 'Програма ще не пам\'ятає жодної книги — відкрийте першу через «+» або Ctrl+O.'));
+    library.list.replaceChildren(h('p', { class: 'panel-empty' }, t(entries.length ? 'library.nothingFound' : 'library.empty')));
     return;
   }
 
@@ -917,31 +905,31 @@ async function renderLibrary() {
     };
     const actions = [];
     if (ok) {
-      actions.push(action(open ? 'Перейти' : 'Відкрити', () => {
+      actions.push(action(t(open ? 'library.goTo' : 'library.open'), () => {
         closeLibrary();
         openBook(filePath);
       }, 'primary'));
-      actions.push(action('Показати в папці', () => api.revealBook(filePath)));
+      actions.push(action(t('library.reveal'), () => api.revealBook(filePath)));
     } else {
-      actions.push(action('Знайти файл…', async () => {
+      actions.push(action(t('library.locate'), async () => {
         const found = await api.locateBook(filePath);
         if (!found) return;
         relinkBook(filePath, found);
-        toast('Книгу знайдено — місце читання й закладки збережено');
+        toast(t('library.located'));
         renderLibrary();
         renderRecent();
       }, 'primary'));
     }
-    const forget = action('Забути', () => {
+    const forget = action(t('library.forget'), () => {
       delete store.books[filePath];
       saveStore();
-      toast(`«${book.title}» прибрано з бібліотеки`);
+      toast(t('library.forgotten', { title: book.title }));
       renderLibrary();
       renderRecent();
     }, 'danger');
     if (open) {
       forget.disabled = true;
-      forget.title = 'Спершу закрийте вкладку з цією книгою';
+      forget.title = t('library.forgetOpen');
     }
     actions.push(forget);
 
@@ -950,10 +938,10 @@ async function renderLibrary() {
       h('div', { class: 'lib-main' },
         // The title is truncated on its own, so the chips stay visible even with a long title
         h('div', { class: 'lib-title' }, h('span', { class: 'lib-name' }, book.title),
-          open ? h('span', { class: 'chip' }, 'відкрита') : null,
-          ok ? null : h('span', { class: 'chip warn' }, 'файл не знайдено')),
+          open ? h('span', { class: 'chip' }, t('library.chipOpen')) : null,
+          ok ? null : h('span', { class: 'chip warn' }, t('library.chipMissing'))),
         h('div', { class: 'lib-sub' }, [book.author, filePath].filter(Boolean).join(' · '))),
-      h('div', { class: 'lib-progress', title: book.location ? `Прочитано ${percent}%` : 'Ще не читали' },
+      h('div', { class: 'lib-progress', title: book.location ? t('library.readPercent', { percent }) : t('library.notStarted') },
         h('div', { class: 'lib-bar' }, h('span', { style: `width:${percent}%` })),
         h('span', {}, `${percent}%`)),
       h('div', { class: 'lib-meta' },
@@ -982,9 +970,9 @@ let searchedQuery = null;   // the query that already has results
 
 function showSearchState(r) {
   let text;
-  if (r.noText) text = 'У книзі немає тексту для пошуку';
+  if (r.noText) text = t('search.noText');
   else if (!searchEls.input.value.trim()) text = '';
-  else if (r.count === 0) text = r.done === false ? `Шукаю… ${r.scanned ?? ''}/${r.total ?? ''}` : 'Не знайдено';
+  else if (r.count === 0) text = r.done === false ? t('search.searching', { scanned: r.scanned ?? '', total: r.total ?? '' }) : t('search.notFound');
   else text = `${r.index + 1} / ${r.count}${r.capped ? '+' : ''}${r.done === false ? ' …' : ''}`;
   searchEls.count.textContent = text;
   searchEls.count.classList.toggle('none', r.count === 0 && r.done !== false && !!searchEls.input.value.trim());
@@ -1078,21 +1066,21 @@ function toggleBookmark() {
   tab.record.bookmarks ??= [];
   if (existing) {
     tab.record.bookmarks.splice(tab.record.bookmarks.indexOf(existing), 1);
-    toast('Закладку прибрано');
+    toast(t('bookmark.removed'));
   } else {
     const location = viewer.getLocation();
     const chapter = flatToc(viewer)[viewer.currentTocIndex?.() ?? -1]?.label ?? '';
     const progress = viewer.progress();
     let text;
     if (viewer.kind === 'fixed') {
-      text = `Сторінка ${location.page + 1}`;
+      text = t('bookmark.page', { n: location.page + 1 });
     } else {
       const snippet = viewer.snippet?.() ?? '';
       text = snippet.length > 90 ? `${snippet.slice(0, 90)}…` : snippet || progress.text;
     }
     tab.record.bookmarks.push({ location, chapter, text, percent: progress.value, created: Date.now() });
     tab.record.bookmarks.sort((a, b) => a.percent - b.percent);
-    toast('Закладку додано');
+    toast(t('bookmark.added'));
   }
   saveStore();
   updateBookmarkButton();
@@ -1103,18 +1091,18 @@ function updateBookmarkButton() {
   const btn = document.getElementById('btn-bookmark');
   const on = !!currentBookmark();
   btn.classList.toggle('active', on);
-  btn.title = on ? 'Прибрати закладку (Ctrl+D)' : 'Додати закладку (Ctrl+D)';
+  btn.title = t(on ? 'toolbar.bookmarkRemove' : 'toolbar.bookmarkAdd');
 }
 
 function renderBookmarks() {
   const tab = activeTab;
   const list = tab?.record.bookmarks ?? [];
   if (!list.length) {
-    bookmarkList.replaceChildren(h('p', { class: 'panel-empty' }, 'Закладок ще немає. Натисніть ', icon('bookmark', 14), ' або Ctrl+D, щоб додати.'));
+    bookmarkList.replaceChildren(h('p', { class: 'panel-empty' }, ...tNodes('panel.bookmarksEmpty', { icon: icon('bookmark', 14) })));
     return;
   }
   bookmarkList.replaceChildren(...list.map((bm) => {
-    const remove = h('button', { class: 'icon-btn', title: 'Видалити закладку' }, icon('x', 14));
+    const remove = h('button', { class: 'icon-btn', title: t('panel.bookmarkDelete') }, icon('x', 14));
     remove.addEventListener('click', (e) => {
       e.stopPropagation();
       tab.record.bookmarks.splice(tab.record.bookmarks.indexOf(bm), 1);
@@ -1164,7 +1152,7 @@ function openGoto() {
     class: 'goto-input',
     type: 'text',
     inputmode: 'numeric',
-    'aria-label': fixed ? 'Перейти на сторінку' : 'Перейти до відсотка книги',
+    'aria-label': t(fixed ? 'goto.page' : 'goto.percent'),
     placeholder: fixed ? `1–${viewer.pageCount}` : '0–100 %',
   });
   const close = () => {
@@ -1231,6 +1219,7 @@ function setupToolbar() {
 }
 
 async function init() {
+  translateDom();
   const saved = await api.loadState();
   Object.assign(store.settings, saved.settings);
   store.books = saved.books ?? {};
