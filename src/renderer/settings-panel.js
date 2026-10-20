@@ -36,6 +36,9 @@ const SLIDERS = [
   { key: 'paraSpacing', min: 0, max: 2, step: 0.1, format: (v) => `${v.toFixed(1)} em` },
 ];
 
+// Brightness of the book area: 1 = unchanged, lower = dimmer (raising max above 1 would also brighten)
+export const BRIGHTNESS = { key: 'brightness', min: 0.3, max: 1, step: 0.05, format: (v) => `${Math.round(v * 100)}%` };
+
 // What the "Reset" button resets (theme and mode stay as they are)
 const TEXT_KEYS = ['fontFamily', 'fontSize', 'lineHeight', 'margin', 'maxWidth', 'indent', 'paraSpacing', 'align'];
 
@@ -87,7 +90,7 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
 
   const slider = (spec) => {
     const label = t(`settings.${spec.key}`);
-    const input = h('input', { type: 'range', min: spec.min, max: spec.max, step: spec.step, 'aria-label': label });
+    const input = h('input', { type: 'range', min: spec.min, max: spec.max, step: spec.step, 'aria-label': label, 'data-key': spec.key });
     const value = h('span', { class: 'slider-value' });
     const toSetting = (raw) => (spec.unlimited && raw >= spec.unlimited ? 0 : raw);
     const fromSetting = (v) => (spec.unlimited && v === 0 ? spec.unlimited : v);
@@ -148,6 +151,7 @@ export function createSettingsPanel({ getSettings, update, defaults, extra = nul
       segmented('language', [['auto', t('settings.languageAuto')], ...LANGUAGES]),
       h('h3', {}, t('settings.theme')),
       segmented('theme', [['light', t('settings.themeLight')], ['sepia', t('settings.themeSepia')], ['dark', t('settings.themeDark')]]),
+      slider(BRIGHTNESS),
       h('h3', {}, t('settings.mode')),
       segmented('mode', [['scroll', t('settings.modeScroll')], ['paged', t('settings.modePaged')]]),
       checkbox('spread', t('settings.spread')),

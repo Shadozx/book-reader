@@ -74,6 +74,7 @@
   "toast.zoom": "Масштаб: {percent}%",
   "toast.zoomPage": "Масштаб: цілком",
   "toast.zoomAuto": "Масштаб: авто",
+  "toast.brightness": "Яскравість: {percent}%",
 
   "settings.title": "Налаштування",
   "settings.language": "Мова",
@@ -82,6 +83,7 @@
   "settings.themeLight": "Світла",
   "settings.themeSepia": "Сепія",
   "settings.themeDark": "Темна",
+  "settings.brightness": "Яскравість",
   "settings.mode": "Режим читання",
   "settings.modeScroll": "Прокрутка",
   "settings.modePaged": "Сторінки",

@@ -74,6 +74,7 @@
   "toast.zoom": "Zoom: {percent}%",
   "toast.zoomPage": "Zoom: fit page",
   "toast.zoomAuto": "Zoom: auto",
+  "toast.brightness": "Brightness: {percent}%",
 
   "settings.title": "Settings",
   "settings.language": "Language",
@@ -82,6 +83,7 @@
   "settings.themeLight": "Light",
   "settings.themeSepia": "Sepia",
   "settings.themeDark": "Dark",
+  "settings.brightness": "Brightness",
   "settings.mode": "Reading mode",
   "settings.modeScroll": "Scroll",
   "settings.modePaged": "Pages",

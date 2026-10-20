@@ -1,5 +1,5 @@
 import { h, icon, debounce, basename, stripExtension } from './util.js';
-import { createSettingsPanel } from './settings-panel.js';
+import { createSettingsPanel, BRIGHTNESS } from './settings-panel.js';
 import { t, tNodes, locale, translateDom, setLanguage } from './i18n.js';
 
 const api = window.api;
@@ -11,6 +11,7 @@ const api = window.api;
 export const DEFAULT_SETTINGS = {
   language: 'auto',        // auto | uk | en (auto: from the Windows language list)
   theme: 'light',          // light | sepia | dark
+  brightness: 1,           // book area brightness, 0.3–1 (1 = unchanged)
   mode: 'scroll',          // scroll | paged
   fontFamily: 'Georgia, "Times New Roman", serif',
   fontSize: 20,            // px
@@ -489,6 +490,7 @@ async function applyLanguage() {
 }
 
 function applySettingsToViewers() {
+  applyBrightness();
   for (const tab of tabs) tab.viewer?.applySettings(store.settings);
   updateProgress();
   saveStore();
@@ -593,6 +595,8 @@ function setupKeyboard() {
     else if (ctrl && (e.code === 'Digit0' || e.code === 'Numpad0')) resetZoomOrFont();
     else if (e.key === 'Escape' && settingsPanel.open) setSettingsOpen(false);
     else if (e.target.closest?.('input, select, textarea')) return;
+    else if (ctrl && e.shiftKey && e.key === 'ArrowUp') changeBrightness(0.1);
+    else if (ctrl && e.shiftKey && e.key === 'ArrowDown') changeBrightness(-0.1);
     else if (activeTab?.viewer?.handleKey?.(e)) { /* handled by the viewer */ }
     else return;
     e.preventDefault();
@@ -742,6 +746,21 @@ function setSettingsOpen(open) {
   if (open && dataControls.autoBackup) dataControls.autoBackup.checked = store.settings.autoBackup !== false;
   settingsPanel.setOpen(open, { textApplies: activeTab?.viewer?.kind !== 'fixed' });
   document.getElementById('btn-settings').classList.toggle('active', open);
+}
+
+// Dims only the book area: tabs, toolbar and panels keep their normal look.
+// No filter at all at 100%, so the usual rendering path stays untouched.
+function applyBrightness() {
+  const b = store.settings.brightness ?? 1;
+  els.panes.style.filter = b === 1 ? '' : `brightness(${b})`;
+}
+
+// Ctrl+Shift+↑/↓: brightness in 10% steps
+function changeBrightness(delta) {
+  const current = store.settings.brightness ?? 1;
+  const next = Math.round(Math.min(BRIGHTNESS.max, Math.max(BRIGHTNESS.min, current + delta)) * 100) / 100;
+  if (next !== current) updateSettings({ brightness: next });
+  toast(t('toast.brightness', { percent: Math.round(next * 100) }));
 }
 
 function changeFontSize(delta) {
@@ -1271,6 +1290,7 @@ async function init() {
   translateDom();
   document.documentElement.dataset.theme = store.settings.theme;
   updateThemeButton();
+  applyBrightness();
 
   setupToolbar();
   setupKeyboard();

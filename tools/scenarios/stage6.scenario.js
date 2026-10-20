@@ -10,7 +10,7 @@ module.exports = async ({ root, exec, waitFor, shot, wait, log }) => {
   const panel = `document.querySelector('.settings-popover')`;
   const para = `app.activeTab.paneEl.querySelector('.flow-scroller .book-content .chunk:not(.cover-chunk) p')`;
   // Set a slider value the way a user does (input event)
-  const setSlider = (index, value) => exec(`(() => { const r = ${panel}.querySelectorAll('input[type=range]')[${index}]; r.value = ${value}; r.dispatchEvent(new Event('input')); })()`);
+  const setSlider = (key, value) => exec(`(() => { const r = ${panel}.querySelector('input[data-key="${key}"]'); r.value = ${value}; r.dispatchEvent(new Event('input')); })()`);
   const clickSeg = (label) => exec(`[...${panel}.querySelectorAll('.seg button')].find(b => b.textContent === ${JSON.stringify(label)}).click()`);
   const loc = () => exec(`JSON.stringify(app.activeTab.viewer.getLocation())`);
   const key = (code, k) => exec(`window.dispatchEvent(new KeyboardEvent('keydown', { key: '${k}', code: '${code}', ctrlKey: true, bubbles: true }))`);
@@ -28,7 +28,7 @@ module.exports = async ({ root, exec, waitFor, shot, wait, log }) => {
   check('панель відкривається кнопкою T', await exec(`!${panel}.hidden`));
   await shot('s6-01-panel-light');
 
-  await setSlider(0, 26);
+  await setSlider('fontSize', 26);
   await wait(400);
   check('розмір шрифту (повзунок)', await exec(`getComputedStyle(${para}).fontSize === '26px'`), await exec(`getComputedStyle(${para}).fontSize`));
   const afterFont = await loc();
@@ -38,19 +38,19 @@ module.exports = async ({ root, exec, waitFor, shot, wait, log }) => {
   await wait(300);
   check('шрифт Verdana', await exec(`getComputedStyle(${para}).fontFamily.includes('Verdana')`));
 
-  await setSlider(1, 2);
-  await setSlider(2, 100);
-  await setSlider(4, 3);
-  await setSlider(5, 1);
+  await setSlider('lineHeight', 2);
+  await setSlider('margin', 100);
+  await setSlider('indent', 3);
+  await setSlider('paraSpacing', 1);
   await wait(400);
   check('міжрядковий інтервал 2.0', await exec(`getComputedStyle(${para}).lineHeight === (26 * 2) + 'px'`), await exec(`getComputedStyle(${para}).lineHeight`));
   check('поля 100 px', await exec(`getComputedStyle(${para}.closest('.book-content')).paddingLeft === '100px'`));
   check('абзацний відступ 3 em', await exec(`getComputedStyle(${para}).textIndent === (26 * 3) + 'px'`), await exec(`getComputedStyle(${para}).textIndent`));
   check('відстань між абзацами 1 em', await exec(`getComputedStyle(${para}).marginBottom === '26px'`), await exec(`getComputedStyle(${para}).marginBottom`));
 
-  await setSlider(3, 1600);
+  await setSlider('maxWidth', 1600);
   await wait(300);
-  check('ширина колонки «без обмеження»', await exec(`app.store.settings.maxWidth === 0 && ${panel}.querySelectorAll('.slider-value')[3].textContent === 'без обмеження'`));
+  check('ширина колонки «без обмеження»', await exec(`app.store.settings.maxWidth === 0 && ${panel}.querySelector('input[data-key="maxWidth"]').closest('.setting').querySelector('.slider-value').textContent === 'без обмеження'`));
 
   await clickSeg('По лівому краю');
   await wait(200);
