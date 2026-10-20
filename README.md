@@ -58,6 +58,7 @@ The result is `dist\Chytalka-Setup-<version>.exe` (about 120 MB). It also create
 - The build is done by [electron-builder](https://www.electron.build/); its settings are in the `build` field of `package.json`.
 - `tools/build.js` sends all downloads (Electron, NSIS) to the project folders `.electron-cache` and `.builder-cache`. The first build downloads the tools and takes a few minutes, later ones take 1–2 minutes.
 - The installer lets you choose the installation folder, installs for the current user only (no administrator rights needed), creates "Chytalka" shortcuts on the desktop and in the Start menu, and registers the app for `.fb2`, `.epub`, `.pdf`, `.djvu`, `.djv`.
+- The installer is in English or Ukrainian, depending on the Windows display language. electron-builder has no Ukrainian translation for some of its pages and NSIS's Ukrainian texts contain typos, so `tools/build.js` adds the translations from `build/installer-uk.json` and fixes the typos for the duration of the build (the files are restored afterwards).
 - The app icon is `build/icon.png`; it is drawn by a script and can be redrawn with `npm run icon`.
 
 Installation notes:
