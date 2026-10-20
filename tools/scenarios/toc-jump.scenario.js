@@ -1,36 +1,28 @@
-// TOC jump followed immediately by PageDown (no pause at all): the position must not "slide"
-// into the previous section because of the estimated height of not yet laid out sections (content-visibility).
-const path = require('node:path');
+// A contents jump followed at once by PageDown (no pause at all): the position must not slide back
+// into the previous chapter because chapters not laid out yet have estimated heights (content-visibility)
 
-const BOOKS = ['Diuna.fb2', 'Holidey_Muzhestvo-Pochemu-smelym-sudba-pomogaet.677332.epub'];
-const TOC_ITEMS = [5, 12, 25, 40, 3, 30];
-
-module.exports = async ({ root, exec, waitFor, wait, log }) => {
-  let failed = 0;
-  let total = 0;
+module.exports = async ({ open, exec, wait, check }) => {
   await exec(`app.updateSettings({ mode: 'scroll' })`);
-  for (const name of BOOKS) {
-    await exec(`app.openBook(${JSON.stringify(path.join(root, 'samples', name))})`);
-    await waitFor(`app.activeTab.viewer`, 30000);
+  for (const role of ['fb2', 'epub']) {
+    await open(role);
     await exec(`(() => { document.getElementById('toc-panel').hidden = true; document.getElementById('btn-toc').click(); app.showSidePanel('toc'); })()`);
     await wait(300);
     const items = await exec(`document.querySelectorAll('.toc-item').length`);
-    for (const index of TOC_ITEMS.filter((i) => i < items)) {
-      // Click and PageDown in one synchronous block: faster than any human
-      const r = JSON.parse(await exec(`(() => {
+    // Entries spread over the book, in a jumpy order
+    const picks = [0.2, 0.45, 0.9, 0.1, 0.7].map((f) => Math.floor(f * (items - 1)));
+    for (const index of picks) {
+      // Click and PageDown in one synchronous block: faster than any person
+      const target = await exec(`(() => {
         document.querySelectorAll('.toc-item')[${index}].click();
         const target = app.activeTab.viewer.getLocation();
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'PageDown', bubbles: true }));
-        return JSON.stringify({ target });
-      })()`));
+        return target;
+      })()`);
       await wait(1200);
-      const after = JSON.parse(await exec(`JSON.stringify(app.activeTab.viewer.getLocation())`));
-      // After PageDown we must be in the same section (or the next one if the section is shorter than the screen), never earlier
-      const ok = after.c > r.target.c || (after.c === r.target.c && after.b >= r.target.b);
-      total++;
-      if (!ok) failed++;
-      log(`${ok ? 'OK  ' : 'FAIL'} ${name.slice(0, 12)} зміст[${index}] ціль c${r.target.c}/b${r.target.b} → після PageDown c${after.c}/b${after.b}`);
+      const after = await exec(`app.activeTab.viewer.getLocation()`);
+      // The same chapter (or the next one if the chapter is shorter than a screen), never an earlier one
+      const ok = after.c > target.c || (after.c === target.c && after.b >= target.b);
+      check(`${role}: contents entry ${index + 1} + PageDown stays in its chapter`, ok, `target c${target.c}/b${target.b} → c${after.c}/b${after.b}`);
     }
   }
-  log(`RESULT ${total - failed}/${total} passed`);
 };

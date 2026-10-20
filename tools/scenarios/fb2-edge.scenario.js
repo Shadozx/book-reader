@@ -1,30 +1,48 @@
-// Parsing of non-standard FB2: broken XML, windows-1251, .fb2.zip
-module.exports = async ({ exec, log }) => {
-  const result = await exec(`(async () => {
+// Non-standard FB2 files the parser must still read: HTML entities and a bare ampersand,
+// XML broken beyond repair (the HTML parser fallback), windows-1251, a book inside .fb2.zip
+
+module.exports = async ({ exec, check }) => {
+  const results = await exec(`(async () => {
     const { parseFb2 } = await import('./formats/fb2.js');
     const { loadJSZip } = await import('./lib.js');
-    const enc = (s) => new TextEncoder().encode(s);
+    const utf8 = (s) => new TextEncoder().encode(s);
+    const read = async (bytes) => {
+      try {
+        const b = await parseFb2(bytes);
+        return { title: b.meta.title, author: b.meta.author, chunks: b.chunks.length, text: b.chunks.map((c) => c.el.textContent).join('|') };
+      } catch (e) {
+        return { error: e.message };
+      }
+    };
     const out = {};
-    const summarize = (b) => ({ title: b.meta.title, author: b.meta.author, chunks: b.chunks.length, toc: b.toc.map(t => t.label), text: b.chunks.map(c => c.el.textContent).join('|').slice(0, 120) });
 
-    // 1. HTML-сутності та «голий» амперсанд
-    const broken = '<?xml version="1.0" encoding="utf-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink"><description><title-info><author><first-name>Іван</first-name><last-name>Франко</last-name></author><book-title>Тест &amp; сутності</book-title></title-info></description><body><section><title><p>Розділ&nbsp;1</p></title><p>Том & Джеррі &mdash; тест &laquo;лапок&raquo;</p></section></body></FictionBook>';
-    try { out.entities = summarize(await parseFb2(enc(broken))); } catch (e) { out.entities = 'ERR ' + e.message; }
+    // HTML entities XML doesn't know, and a bare "&"
+    out.entities = await read(utf8('<?xml version="1.0" encoding="utf-8"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"><description><title-info><author><first-name>Іван</first-name><last-name>Франко</last-name></author><book-title>Тест &amp; сутності</book-title></title-info></description><body><section><title><p>Розділ&nbsp;1</p></title><p>Том & Джеррі &mdash; тест &laquo;лапок&raquo;</p></section></body></FictionBook>'));
 
-    // 2. Незакритий тег — XML не розбирається навіть після виправлень, працює HTML-парсер
-    const veryBroken = '<?xml version="1.0"?><FictionBook><description><title-info><book-title>Битий</book-title></title-info></description><body><title><p>Назва книги</p></title><section><title><p>Глава</p></title><p>Абзац <emphasis>курсив</p><p>Другий абзац</p></section></body></FictionBook>';
-    try { out.htmlFallback = summarize(await parseFb2(enc(veryBroken))); } catch (e) { out.htmlFallback = 'ERR ' + e.message; }
+    // An unclosed tag: XML can't be repaired, the lenient HTML parser takes over
+    out.htmlFallback = await read(utf8('<?xml version="1.0"?><FictionBook><description><title-info><book-title>Битий</book-title></title-info></description><body><title><p>Назва книги</p></title><section><title><p>Глава</p></title><p>Абзац <emphasis>курсив</p><p>Другий абзац</p></section></body></FictionBook>'));
 
-    // 3. windows-1251
-    const cp1251 = (s) => Uint8Array.from([...s].map(ch => { const c = ch.charCodeAt(0); if (c < 128) return c; if (c >= 0x410 && c <= 0x44f) return c - 0x410 + 0xc0; if (c === 0x456) return 0xb3; if (c === 0x406) return 0xb2; if (c === 0x457) return 0xbf; if (c === 0x454) return 0xba; return 63; }));
-    const win = '<?xml version="1.0" encoding="windows-1251"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"><description><title-info><book-title>Кобзар</book-title></title-info></description><body><section><title><p>Перша</p></title><p>Привіт, світе</p></section></body></FictionBook>';
-    try { out.cp1251 = summarize(await parseFb2(cp1251(win))); } catch (e) { out.cp1251 = 'ERR ' + e.message; }
+    // windows-1251 (encoded by hand: Cyrillic letters and і, ї, є)
+    const cp1251 = (s) => Uint8Array.from([...s].map((ch) => {
+      const c = ch.charCodeAt(0);
+      if (c < 128) return c;
+      if (c >= 0x410 && c <= 0x44f) return c - 0x410 + 0xc0;
+      return { 0x456: 0xb3, 0x406: 0xb2, 0x457: 0xbf, 0x454: 0xba }[c] ?? 63;
+    }));
+    const kobzar = '<?xml version="1.0" encoding="windows-1251"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"><description><title-info><book-title>Кобзар</book-title></title-info></description><body><section><title><p>Перша</p></title><p>Привіт, світе</p></section></body></FictionBook>';
+    out.cp1251 = await read(cp1251(kobzar));
 
-    // 4. .fb2.zip
+    // .fb2.zip
     const JSZip = await loadJSZip();
-    const zip = new JSZip(); zip.file('book.fb2', win.replace('windows-1251', 'utf-8'));
-    try { out.zip = summarize(await parseFb2(await zip.generateAsync({ type: 'uint8array' }))); } catch (e) { out.zip = 'ERR ' + e.message; }
-    return JSON.stringify(out, null, 1);
+    const zip = new JSZip();
+    zip.file('book.fb2', kobzar.replace('windows-1251', 'utf-8'));
+    out.zip = await read(await zip.generateAsync({ type: 'uint8array' }));
+    return out;
   })()`);
-  log(result);
+
+  const { entities, htmlFallback, cp1251, zip } = results;
+  check('HTML entities and a bare & are read', entities.title === 'Тест & сутності' && entities.author === 'Іван Франко' && entities.text.includes('Том & Джеррі — тест «лапок»'), JSON.stringify(entities).slice(0, 160));
+  check('broken XML falls back to the HTML parser', htmlFallback.chunks > 0 && htmlFallback.text.includes('Другий абзац'), JSON.stringify(htmlFallback).slice(0, 160));
+  check('windows-1251 is decoded', cp1251.title === 'Кобзар' && cp1251.text.includes('Привіт, світе'), JSON.stringify(cp1251).slice(0, 160));
+  check('a book inside .fb2.zip is read', zip.title === 'Кобзар' && zip.text.includes('Привіт, світе'), JSON.stringify(zip).slice(0, 160));
 };
