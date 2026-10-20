@@ -24,7 +24,7 @@ module.exports = async ({ root, exec, waitFor, wait, shot, log }) => {
   check('в en.json немає українських слів', cyrillic.length === 0, cyrillic.map(([k]) => k).join(', '));
 
   // 2) Starts in Ukrainian (autotests set the system language to Ukrainian)
-  check('стартує українською', await exec(`document.documentElement.lang === 'uk' && document.querySelector('#welcome h1').textContent === 'Читалка'`));
+  check('стартує українською', await exec(`document.documentElement.lang === 'uk' && document.getElementById('btn-open-big').textContent === 'Відкрити книгу'`));
 
   // A book with a Latin title, so the book's own text doesn't count as untranslated UI
   await exec(`app.openBook(${JSON.stringify(path.join(root, 'samples', 'Allan_and_Barbara_Pease_-_Body_Language_The_Definitive_Book.pdf'))})`);
@@ -96,11 +96,11 @@ module.exports = async ({ root, exec, waitFor, wait, shot, log }) => {
   await exec(`app.updateSettings({ language: 'auto' })`);
   await waitFor(`document.documentElement.lang === 'uk'`, 5000);
   await wait(300);
-  check('«Як у системі» при українській — українська', await exec(`document.getElementById('btn-bookmark').title === 'Прибрати закладку (Ctrl+D)' && document.title.endsWith('Читалка')`));
+  check('«Як у системі» при українській — українська', await exec(`document.getElementById('btn-bookmark').title === 'Прибрати закладку (Ctrl+D)' && document.title.endsWith('Chytalka')`));
   process.env.AUTOTEST_DIALOG_FILE = junk;
   const errUk = await exec(`window.api.importRead().then(r => r.error)`);
   delete process.env.AUTOTEST_DIALOG_FILE;
-  check('системні діалоги повернулись до української', errUk === 'Це не резервна копія «Читалки».', errUk);
+  check('системні діалоги повернулись до української', errUk === 'Це не резервна копія Chytalka.', errUk);
 
   // 6) The language doesn't change how the book is laid out
   await exec(`app.updateSettings({ language: 'en' })`);

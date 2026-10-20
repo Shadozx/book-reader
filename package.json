@@ -1,7 +1,7 @@
 {
   "name": "book-reader",
   "version": "0.1.0",
-  "description": "Читалка книг: FB2, EPUB, PDF, DjVu",
+  "description": "Book reader for FB2, EPUB, PDF and DjVu",
   "main": "src/main/main.js",
   "private": true,
   "scripts": {
@@ -21,8 +21,8 @@
   },
   "build": {
     "appId": "local.bookreader.app",
-    "productName": "Читалка",
-    "executableName": "BookReader",
+    "productName": "Chytalka",
+    "executableName": "Chytalka",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -85,7 +85,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Читалка",
+      "shortcutName": "Chytalka",
       "artifactName": "Chytalka-Setup-${version}.${ext}",
       "include": "build/installer.nsh"
     }

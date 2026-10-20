@@ -1,30 +1,32 @@
-# Читалка
+# Chytalka
 
-Десктопна програма для Windows для читання книг у форматах **FB2, EPUB, PDF і DjVu**.
-Зроблена на Electron (HTML/CSS/JavaScript).
+A Windows desktop app for reading **FB2, EPUB, PDF and DjVu** books.
+Built with Electron (HTML/CSS/JavaScript). *Chytalka* (Читалка) is Ukrainian for "reader";
+the app is called Chytalka in every interface language.
 
-## Можливості
+## Features
 
-- **Мова інтерфейсу:** українська або англійська; за замовчуванням — як у Windows (за першою мовою в списку мов системи). Перемикається в налаштуваннях без перезапуску.
-- **Вкладки:** кілька книг відкриті одночасно; після перезапуску вкладки відновлюються.
-- **Два режими читання:** суцільна прокрутка або посторінкове гортання (на широкому екрані — розворот із двох сторінок).
-- **Теми:** світла, сепія, темна. У темній темі сторінки PDF/DjVu інвертуються (світлий текст на темному тлі), а обкладинки й фото лишаються природними.
-- **Налаштування тексту (FB2/EPUB):** шрифт, розмір, міжрядковий інтервал, поля, ширина колонки, абзацний відступ, відстань між абзацами, вирівнювання.
-- **Масштаб (PDF/DjVu):** «Авто», «По ширині», «Цілком» або у відсотках.
-- **Місце читання** запам'ятовується для кожної книги й не губиться при зміні шрифту, розміру вікна чи режиму.
-- **Поточний розділ:** під назвою книги видно, в якому ви розділі, скільки з нього прочитали і скільки часу лишилося до його кінця; тонка смужка під панеллю інструментів показує прогрес розділу наочно. Час рахується за вашою швидкістю читання: спершу береться типова (≈1100 знаків за хвилину або ≈1,4 хв на сторінку скану), а далі програма підлаштовується під вас — стрибки за змістом, повернення назад і перерви не враховуються.
-- **Зміст** книги, **закладки**, **пошук** по тексту, **перехід** на сторінку чи відсоток.
-- **Виноски** FB2/EPUB відкриваються у спливаючому вікні.
-- **Виділення й копіювання тексту** в PDF і DjVu (якщо файл має текстовий шар).
+- **Interface language:** English or Ukrainian. By default it follows Windows (the first language in the system language list). Switches in the settings without a restart.
+- **Tabs:** several books open at once; tabs are restored after a restart.
+- **Two reading modes:** continuous scrolling or page by page (a two-page spread on a wide screen).
+- **Themes:** light, sepia, dark. In the dark theme PDF/DjVu pages are inverted (light text on a dark background), while covers and photos keep their natural look.
+- **Brightness:** dims the book area from 100% down to 30% for reading at night; tabs and panels stay as they are.
+- **Text settings (FB2/EPUB):** font, size, line spacing, margins, column width, paragraph indent, paragraph spacing, alignment.
+- **Zoom (PDF/DjVu):** "Auto", "Fit width", "Fit page" or a percentage.
+- **Reading position** is remembered for every book and survives changes of font, window size or mode.
+- **Current chapter:** below the book title you see which chapter you are in, how much of it you've read and how much time is left until its end; a thin bar under the toolbar shows the chapter progress. The time is based on your reading speed: it starts with a typical one (≈1100 characters per minute or ≈1.4 min per scanned page) and then adapts to you; jumps through the contents, going back and breaks are ignored.
+- **Table of contents**, **bookmarks**, **text search**, **go to** a page or a percentage.
+- **Footnotes** in FB2/EPUB open in a popup.
+- **Text selection and copying** in PDF and DjVu (if the file has a text layer).
 
-## Вимоги
+## Requirements
 
-- Windows 10 або 11 (64-біт).
-- [Node.js](https://nodejs.org/) — рекомендовано 22 LTS. На Node.js 20 теж працює, але Electron офіційно просить 22.12+.
+- Windows 10 or 11 (64-bit).
+- [Node.js](https://nodejs.org/), 22 LTS recommended. Node.js 20 works too, but Electron officially asks for 22.12+.
 
-Усі залежності встановлюються **локально** в папку проєкту — глобально нічого не ставиться.
+All dependencies are installed **locally** into the project folder; nothing is installed globally.
 
-## Запуск
+## Running
 
 ```bash
 npm install
@@ -34,199 +36,213 @@ npm install
 npm start
 ```
 
-`npm install` встановлює залежності в `node_modules` і завантажує Electron.
-Щоб і кеш завантаження Electron лежав у папці проєкту (а не в `%LOCALAPPDATA%\electron\Cache`),
-перед установленням задайте змінну середовища (PowerShell):
+`npm install` installs the dependencies into `node_modules` and downloads Electron.
+To keep Electron's download cache in the project folder as well (instead of `%LOCALAPPDATA%\electron\Cache`),
+set an environment variable before installing (PowerShell):
 
 ```powershell
 $env:electron_config_cache = "$PWD\.electron-cache"; npm install
 ```
 
-Книгу можна відкрити кнопкою «+», через Ctrl+O або перетягнувши файл у вікно.
+Open a book with the "+" button, Ctrl+O, or by dropping a file into the window.
 
-## Збирання інсталятора
+## Building the installer
 
 ```bash
 npm run dist
 ```
 
-Результат — `dist\Chytalka-Setup-<версія>.exe` (близько 120 МБ). Також створюється
-`dist\win-unpacked\` — програма без встановлення (`BookReader.exe`).
+The result is `dist\Chytalka-Setup-<version>.exe` (about 120 MB). It also creates
+`dist\win-unpacked\`, the app without installation (`Chytalka.exe`).
 
-- Збирання виконує [electron-builder](https://www.electron.build/); налаштування — у полі `build` файлу `package.json`.
-- Скрипт `tools/build.js` спрямовує всі завантаження (Electron, NSIS) у папки проєкту `.electron-cache` і `.builder-cache`. Перше збирання завантажує інструменти й триває кілька хвилин, наступні — 1–2 хвилини.
-- Інсталятор дає вибрати папку встановлення, ставить програму лише для поточного користувача (права адміністратора не потрібні), створює ярлики «Читалка» на робочому столі та в меню «Пуск» і реєструє програму для `.fb2`, `.epub`, `.pdf`, `.djvu`, `.djv`.
-- Іконка програми — `build/icon.png`; її малює скрипт, перемалювати можна командою `npm run icon`.
+- The build is done by [electron-builder](https://www.electron.build/); its settings are in the `build` field of `package.json`.
+- `tools/build.js` sends all downloads (Electron, NSIS) to the project folders `.electron-cache` and `.builder-cache`. The first build downloads the tools and takes a few minutes, later ones take 1–2 minutes.
+- The installer lets you choose the installation folder, installs for the current user only (no administrator rights needed), creates "Chytalka" shortcuts on the desktop and in the Start menu, and registers the app for `.fb2`, `.epub`, `.pdf`, `.djvu`, `.djv`.
+- The app icon is `build/icon.png`; it is drawn by a script and can be redrawn with `npm run icon`.
 
-Особливості встановлення:
+Installation notes:
 
-- **Інсталятор не підписаний** цифровим підписом, тому Windows SmartScreen покаже «Windows захистив ваш ПК» → «Докладніше» → «Однаково запустити».
-- **PDF:** якщо для PDF уже вибрано програму за замовчуванням (Edge, Acrobat), Windows не дозволить інсталятору її змінити. «Читалка» з'явиться в меню «Відкрити за допомогою», де можна вибрати «Завжди».
+- **The installer is not code-signed**, so Windows SmartScreen will show "Windows protected your PC" → "More info" → "Run anyway".
+- **PDF:** if a default PDF app is already chosen (Edge, Acrobat), Windows doesn't let the installer change it. The app appears in the "Open with" menu, where you can choose "Always".
 
-## Гарячі клавіші
+## Keyboard shortcuts
 
-| Дія | Клавіші |
+| Action | Keys |
 |---|---|
-| Відкрити книгу | Ctrl+O |
-| Закрити вкладку | Ctrl+W (або середня кнопка миші на вкладці) |
-| Наступна / попередня вкладка | Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+PageDown / Ctrl+PageUp |
-| Вкладка за номером | Ctrl+1 … Ctrl+9 |
-| Зміст і закладки | Ctrl+B |
-| Бібліотека | Ctrl+L |
-| Пошук | Ctrl+F; Enter / Shift+Enter або F3 / Shift+F3 — наступний / попередній збіг; Esc — закрити |
-| Перехід на сторінку (PDF/DjVu) або відсоток (FB2/EPUB) | Ctrl+G або клік по лічильнику сторінок |
-| Додати / прибрати закладку | Ctrl+D |
-| Розмір шрифту (FB2/EPUB) або масштаб (PDF/DjVu) | Ctrl + «+» / Ctrl + «−», Ctrl + колесо миші; Ctrl+0 — стандартний |
-| Гортання | → ← PageDown PageUp, пробіл / Shift+пробіл, колесо миші, клік по лівому чи правому краю сторінки |
-| На початок / в кінець книги | Home / End |
-| Повний екран | F11 |
-| Інструменти розробника | F12 |
+| Open a book | Ctrl+O |
+| Close the tab | Ctrl+W (or the middle mouse button on a tab) |
+| Next / previous tab | Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+PageDown / Ctrl+PageUp |
+| Tab by number | Ctrl+1 … Ctrl+9 |
+| Contents and bookmarks | Ctrl+B |
+| Library | Ctrl+L |
+| Search | Ctrl+F; Enter / Shift+Enter or F3 / Shift+F3 for the next / previous match; Esc to close |
+| Go to a page (PDF/DjVu) or a percentage (FB2/EPUB) | Ctrl+G or a click on the page counter |
+| Add / remove a bookmark | Ctrl+D |
+| Font size (FB2/EPUB) or zoom (PDF/DjVu) | Ctrl + "+" / Ctrl + "−", Ctrl + mouse wheel; Ctrl+0 for the default |
+| Brightness | Ctrl+Shift+↑ / Ctrl+Shift+↓ (10% steps) |
+| Turn pages | → ← PageDown PageUp, Space / Shift+Space, mouse wheel, a click on the left or right edge of the page |
+| Start / end of the book | Home / End |
+| Full screen | F11 |
+| Developer tools | F12 |
 
-## Де зберігаються дані
+## Where the data is stored
 
-Налаштування, відкриті вкладки, місця читання й закладки — у файлі
-`%APPDATA%\book-reader\state.json` (спільний для `npm start` і встановленої програми).
-Самі книги нікуди не копіюються: програма лише читає їх з диска.
+Settings, open tabs, reading positions and bookmarks are kept in
+`%APPDATA%\book-reader\state.json` (shared by `npm start` and the installed app).
+The books themselves are never copied: the app only reads them from disk.
 
-### Скидання даних
+### Resetting data
 
-Панель налаштувань (кнопка «T») → розділ **«Дані»** внизу:
+Settings panel (the "T" button) → the **"Data"** section at the bottom:
 
-| Кнопка | Що робить |
+| Button | What it does |
 |---|---|
-| Скинути налаштування | тема, шрифт, відступи, режим → стандартні; книги, закладки й місця читання лишаються |
-| Очистити історію читання… | після підтвердження закриває вкладки й видаляє список нещодавніх книг, місця читання та закладки |
-| Скинути все й перезапустити… | після підтвердження видаляє `state.json` і перезавантажує програму з чистого стану (зокрема скидається виміряна швидкість читання) |
-| Експортувати дані… | зберігає резервну копію (налаштування, книги з місцями читання, закладки, вкладки, швидкість читання) у файл `chytalka-backup-<дата>.json`, за замовчуванням у `Документи\Chytalka` |
-| Імпортувати дані… | відновлює дані з резервної копії: показує, коли її створено й скільки в ній книг і закладок, і після підтвердження замінює поточні дані та перезапускає програму |
-| Автоматична резервна копія щодня | увімкнено за замовчуванням (див. нижче) |
-| Відкрити папку з резервними копіями | відкриває `Документи\Chytalka` у Провіднику |
-| Відкрити папку з даними | відкриває `%APPDATA%\book-reader` у Провіднику |
+| Reset settings | theme, font, spacing, mode, brightness, language → defaults; books, bookmarks and reading positions stay |
+| Clear reading history… | after confirmation closes the tabs and deletes the list of recent books, reading positions and bookmarks |
+| Reset everything and restart… | after confirmation deletes `state.json` and reloads the app from a clean state (including the measured reading speed) |
+| Export data… | saves a backup (settings, books with reading positions, bookmarks, tabs, reading speed) to `chytalka-backup-<date>.json`, by default in `Documents\Chytalka` |
+| Import data… | restores data from a backup: shows when it was created and how many books and bookmarks it has, and after confirmation replaces the current data and restarts the app |
+| Automatic daily backup | on by default (see below) |
+| Open the backups folder | opens `Documents\Chytalka` in Explorer |
+| Open the data folder | opens `%APPDATA%\book-reader` in Explorer |
 
-Файли книг жодна з цих дій не чіпає.
+None of these actions touch the book files.
 
-Імпорт приймає як файл експорту, так і звичайний `state.json`; чужі чи пошкоджені файли відхиляються.
-Розмір і положення вікна не експортуються — вони залежать від монітора.
-Резервна копія зберігає лише шляхи до книг: якщо файли книг переміщено, у бібліотеці вони будуть
-позначені «файл не знайдено» — кнопка «Знайти файл…» перенесе дані на нове місце.
+Import accepts both an export file and a plain `state.json`; foreign or damaged files are rejected.
+Window size and position are not exported, since they depend on the monitor.
+A backup stores only the paths to the books: if the book files were moved, the library marks them
+"file not found", and the "Find file…" button moves their data to the new location.
 
-### Автоматичні резервні копії
+### Automatic backups
 
-Робочі дані програма тримає в `%APPDATA%\book-reader`, а резервні копії сама складає в
-**`Документи\Chytalka`** — там вони переживуть і «Скинути все», і видалення програми:
+The app keeps its working data in `%APPDATA%\book-reader` and writes backups on its own to
+**`Documents\Chytalka`**, where they survive both "Reset everything" and uninstalling the app:
 
-- один файл на день, `chytalka-auto-<дата>.json`; протягом дня він оновлюється не частіше, ніж раз на 5 хвилин;
-- зберігаються останні 10 днів, старіші автокопії видаляються; ручні експорти (`chytalka-backup-…`) не чіпаються;
-- якщо історія читання порожня (наприклад, одразу після «Скинути все»), копія не пишеться — щоб не затерти попередню;
-- вимикається перемикачем у розділі «Дані»;
-- відновлення — «Імпортувати дані…» і вибрати потрібний файл;
-- копії зі старої папки `Документи\Читалка` (попередні версії) програма сама переносить у `Chytalka`.
+- one file per day, `chytalka-auto-<date>.json`; during the day it is updated at most once every 5 minutes;
+- the last 10 days are kept, older auto backups are deleted; manual exports (`chytalka-backup-…`) are left alone;
+- if the reading history is empty (for example right after "Reset everything"), no backup is written, so the previous one isn't overwritten;
+- can be turned off with a switch in the "Data" section;
+- to restore, use "Import data…" and pick the file;
+- backups from the old folder `Documents\Читалка` (earlier versions) are moved to `Chytalka` automatically.
 
-## Бібліотека
+## Library
 
-Кнопка зліва в рядку вкладок або **Ctrl+L** — список усіх книг, які пам'ятає програма:
+The button at the left of the tab bar or **Ctrl+L** lists every book the app remembers:
 
-- підсумок: скільки книг, у скількох є місце читання, скільки закладок і скільки файлів не знайдено;
-- для кожної книги — формат, назва й автор, шлях до файлу, прогрес, коли відкривали, кількість закладок,
-  позначки «відкрита» чи «файл не знайдено»;
-- дії: **Відкрити** (книга відкриється на збереженому місці; або подвійний клік), **Показати в папці**,
-  **Знайти файл…** (якщо книгу перемістили — місце читання й закладки перейдуть на новий шлях), **Забути**;
-- пошук за назвою, автором чи шляхом і сортування: нещодавні, за назвою, за прогресом.
+- a summary: how many books, how many have a reading position, how many bookmarks and how many files are missing;
+- for each book: format, title and author, file path, progress, when it was last opened, number of bookmarks,
+  and "open" or "file not found" marks;
+- actions: **Open** (the book opens at the saved position; a double click works too), **Show in folder**,
+  **Find file…** (if the book was moved, its reading position and bookmarks move to the new path), **Forget**;
+- search by title, author or path, and sorting: recent, by title, by progress.
 
-На стартовому екрані під «Нещодавніми» є посилання «Уся бібліотека».
+The welcome screen has a "Whole library" link under "Recent".
 
-## Видалення програми
+## Uninstalling
 
-Будь-який із способів:
+Either way works:
 
-- Панель налаштувань → **«Дані»** → **«Видалити програму…»** — «Читалка» закриється й запуститься штатний деінсталятор.
-- **Параметри Windows → Програми → Інстальовані програми → «Читалка» → Видалити.**
+- Settings panel → **"Data"** → **"Uninstall the app…"**: the app closes and the standard uninstaller starts.
+- **Windows Settings → Apps → Installed apps → "Chytalka" → Uninstall.**
 
-Деінсталятор спитає, чи видалити також налаштування, закладки й місця читання (`%APPDATA%\book-reader`).
-«Ні» — дані лишаться, і після повторного встановлення все відновиться. Під час оновлення програми
-(встановлення нової версії поверх старої) це питання не з'являється й дані не видаляються.
-Крок деінсталятора описано в `build/installer.nsh`.
+The uninstaller asks whether to also delete the settings, bookmarks and reading positions (`%APPDATA%\book-reader`).
+Answer "No" to keep them, so everything comes back after reinstalling. When updating the app
+(installing a new version over the old one) the question isn't asked and the data isn't deleted.
+The uninstaller step is defined in `build/installer.nsh`.
 
-Версія, запущена через `npm start`, не встановлена в систему — щоб її прибрати, досить видалити папку проєкту
-(і за бажанням `%APPDATA%\book-reader`).
+The version started with `npm start` isn't installed in the system; to remove it, just delete the project folder
+(and, if you like, `%APPDATA%\book-reader`).
 
-## Структура проєкту
+## Project structure
 
 ```
 book-reader/
-├─ package.json            залежності, скрипти, налаштування збирання
-├─ build/icon.png          іконка програми
-├─ vendor/djvu.js          DjVu.js — зміст DjVu і запасний декодер
-├─ samples/                тестові книги (не входять у збірку)
+├─ package.json            dependencies, scripts, build settings
+├─ build/
+│  ├─ icon.png             app icon
+│  └─ installer.nsh        extra uninstaller steps
+├─ vendor/djvu.js          DjVu.js: DjVu table of contents and fallback decoder
+├─ samples/                test books (not in the repository, see "Autotests")
 ├─ src/
-│  ├─ main/                головний процес Electron
-│  │  ├─ main.js           вікно, читання файлів, діалоги, збереження стану, протокол app://
-│  │  ├─ i18n.js           переклад системних діалогів
-│  │  └─ preload.js        безпечний міст між вікном і системою
-│  └─ renderer/            інтерфейс
+│  ├─ main/                Electron main process
+│  │  ├─ main.js           window, file reading, dialogs, state saving, app:// protocol
+│  │  ├─ i18n.js           translations for native dialogs
+│  │  └─ preload.js        safe bridge between the window and the system
+│  └─ renderer/            user interface
 │     ├─ index.html, styles.css
-│     ├─ app.js            вкладки, панель інструментів, пошук, закладки, гарячі клавіші
-│     ├─ settings-panel.js панель налаштувань (кнопка «T»)
-│     ├─ i18n.js           переклад інтерфейсу
-│     ├─ locales/          тексти інтерфейсу: uk.json, en.json
-│     ├─ lib.js            підключення бібліотек на вимогу
-│     ├─ formats/          розбір форматів
-│     │  ├─ fb2.js, epub.js         → модель книги для текстового переглядача
-│     │  ├─ pdf.js, djvu.js         → «джерела сторінок» для переглядача сторінок
-│     │  └─ djvu-worker.js          розшифровка DjVu (djvu-rs) у фоновому потоці
+│     ├─ app.js            tabs, toolbar, search, bookmarks, library, hotkeys
+│     ├─ settings-panel.js settings panel (the "T" button)
+│     ├─ i18n.js           interface translations
+│     ├─ locales/          interface texts: en.json, uk.json
+│     ├─ lib.js            on-demand library loading
+│     ├─ formats/          format parsers
+│     │  ├─ fb2.js, epub.js         → book model for the text viewer
+│     │  ├─ pdf.js, djvu.js         → "page sources" for the page viewer
+│     │  └─ djvu-worker.js          DjVu decoding (djvu-rs) in a background thread
 │     └─ viewers/
-│        ├─ flow.js        FB2/EPUB: прокрутка і сторінки, позиція, виноски, пошук
-│        └─ fixed.js       PDF/DjVu: сторінки, масштаб, текстовий шар, посилання, пошук
+│        ├─ flow.js        FB2/EPUB: scroll and paged modes, location, footnotes, search
+│        └─ fixed.js       PDF/DjVu: pages, zoom, text layer, links, search
 └─ tools/
-   ├─ build.js             збирання інсталятора
-   ├─ make-icon.js         малювання іконки
-   ├─ autotest.js          автоперевірка (запуск програми + сценарій + скріншоти)
-   └─ scenarios/           сценарії автоперевірки
+   ├─ build.js             installer build
+   ├─ make-icon.js         icon drawing
+   ├─ autotest.js          autotests (starts the app + runs a scenario + takes screenshots)
+   └─ scenarios/           autotest scenarios
 ```
 
-## Автоперевірка
+### Translations
 
-Сценарії в `tools/scenarios/` запускають програму з окремою тимчасовою папкою даних
-(ваші налаштування не зачіпаються), виконують дії й зберігають скріншоти в указану папку.
-Для більшості сценаріїв потрібні книги в папці `samples/`.
+All interface texts live in `src/renderer/locales/en.json` and `uk.json` with the same keys;
+the main process uses the same files for native dialogs. To add a language, add a `<code>.json`
+with all the keys and register it in `src/renderer/i18n.js` and `src/main/i18n.js`.
+The `language` autotest checks that the dictionaries have the same keys and placeholders.
+
+## Autotests
+
+Scenarios in `tools/scenarios/` start the app with a separate temporary data folder
+(your settings are not touched), perform actions and save screenshots to the given folder.
+
+Most scenarios need books in the `samples/` folder. The books are not part of the repository
+(they are copyrighted), so put your own files there; the scenarios refer to specific file names
+that are written inside each scenario.
 
 ```bash
 npx electron tools/autotest.js tools/scenarios/stage6.scenario.js out/stage6
 ```
 
-| Сценарій | Що перевіряє |
+| Scenario | What it checks |
 |---|---|
-| `stage1` | вкладки, теми, формати (+ `restore` — відновлення після перезапуску) |
-| `stage2`, `fb2-edge` | FB2: розбір, виноски, зміст; пошкоджені файли, windows-1251, `.fb2.zip` |
-| `stage3` | прокрутка / сторінки, збереження місця (+ `stage3-restore`) |
-| `stage4`, `formatting` | EPUB; курсив, жирний, посилання |
-| `stage5`, `djvu-quick`, `dark-pages` | PDF і DjVu, швидкість, темна тема |
-| `stage6` | панель налаштувань і гарячі клавіші |
-| `resize` | вміщення тексту й картинок у вікна різного розміру |
-| `search`, `bookmarks` (+ `bookmarks-restore`), `chapter`, `toc-jump` | пошук, закладки, поточний розділ, перехід за змістом |
-| `reading-time` | час до кінця розділу, підлаштування швидкості читання |
-| `close-tabs` | закриття вкладок кожного формату (хрестик, середня кнопка, Ctrl+W) справжніми кліками миші |
-| `data` | скидання налаштувань, очищення історії, «Скинути все», кнопка видалення в dev-версії |
-| `backup` | експорт і імпорт даних, відновлення після «Скинути все», відмова для чужих файлів |
-| `library` | бібліотека (пошук, сортування, «Знайти файл…», «Забути»), автоматичні резервні копії та їх ротація |
-| `language` | перемикання мови без перезапуску, жодного українського тексту в англійській версії, однакові ключі в `uk.json` і `en.json` |
-| `packaged` | зібрана програма (`AUTOTEST_APP=dist/win-unpacked/resources/app.asar`) |
+| `stage1` | tabs, themes, formats (+ `restore`: restoring after a restart) |
+| `stage2`, `fb2-edge` | FB2: parsing, footnotes, contents; damaged files, windows-1251, `.fb2.zip` |
+| `stage3` | scroll / pages, keeping the position (+ `stage3-restore`) |
+| `stage4`, `formatting` | EPUB; italic, bold, links |
+| `stage5`, `djvu-quick`, `dark-pages` | PDF and DjVu, speed, dark theme |
+| `stage6` | settings panel and hotkeys |
+| `resize` | text and images fit windows of different sizes |
+| `search`, `bookmarks` (+ `bookmarks-restore`), `chapter`, `toc-jump` | search, bookmarks, current chapter, jumping through the contents |
+| `reading-time` | time to the end of the chapter, reading speed adaptation |
+| `close-tabs` | closing tabs of every format (close button, middle button, Ctrl+W) with real mouse clicks |
+| `data` | reset settings, clear history, "Reset everything", the uninstall button in the dev version |
+| `backup` | data export and import, restoring after "Reset everything", rejecting foreign files |
+| `library` | library (search, sorting, "Find file…", "Forget"), automatic backups and their rotation |
+| `language` | switching the language without a restart, no Ukrainian text in the English UI, matching keys in `en.json` and `uk.json` |
+| `brightness` | brightness slider and hotkeys, 30–100% limits, only the book area is dimmed |
+| `packaged` | the built app (`AUTOTEST_APP=dist/win-unpacked/resources/app.asar`) |
 
-Автотести пишуть резервні копії не в справжні «Документи», а в тестову папку (`CHYTALKA_BACKUP_DIR`),
-а мовою системи вважають українську (`CHYTALKA_SYSTEM_LANG`), бо перевіряють українські тексти.
+Autotests write backups to a test folder instead of the real Documents (`CHYTALKA_BACKUP_DIR`)
+and treat Ukrainian as the system language (`CHYTALKA_SYSTEM_LANG`), since they check Ukrainian texts.
 
-Сценарії з суфіксом `restore` запускаються після основного з `AUTOTEST_KEEP_STATE=1`
-і тією самою папкою результатів — так перевіряється збереження стану між запусками.
+Scenarios with the `restore` suffix run after the main one with `AUTOTEST_KEEP_STATE=1`
+and the same output folder; this checks that the state survives a restart.
 
-## Бібліотеки та ліцензії
+## Libraries and licenses
 
-| Бібліотека | Для чого | Ліцензія |
+| Library | Used for | License |
 |---|---|---|
-| [Electron](https://www.electronjs.org/) | оболонка програми | MIT |
+| [Electron](https://www.electronjs.org/) | app shell | MIT |
 | [pdf.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist`) | PDF | Apache-2.0 |
-| [JSZip](https://stuk.github.io/jszip/) | EPUB, `.fb2.zip` | MIT або GPL-3.0 (на вибір) |
-| [djvu-rs](https://github.com/matyushkin/djvu-rs) | малювання DjVu, текстовий шар | MIT |
-| [DjVu.js](https://djvu.js.org/) (`vendor/djvu.js`) | зміст DjVu, запасний декодер | GPL-2.0 або новіша |
+| [JSZip](https://stuk.github.io/jszip/) | EPUB, `.fb2.zip` | MIT or GPL-3.0 (your choice) |
+| [djvu-rs](https://github.com/matyushkin/djvu-rs) | DjVu rendering, text layer | MIT |
+| [DjVu.js](https://djvu.js.org/) (`vendor/djvu.js`) | DjVu table of contents, fallback decoder | GPL-2.0 or later |
 
-DjVu.js поширюється під GPL-2.0 (або новішою версією). Для особистого використання це не має значення; якщо програму
-планується поширювати із закритим кодом, DjVu.js треба буде замінити.
+DjVu.js is distributed under GPL-2.0 (or any later version). This doesn't matter for personal use; if the app
+is ever distributed as closed source, DjVu.js will have to be replaced.

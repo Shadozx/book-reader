@@ -65,7 +65,7 @@ module.exports = async ({ root, exec, waitFor, wait, log }) => {
   fs.writeFileSync(foreign, JSON.stringify({ hello: 'world', items: [1, 2] }));
   process.env.AUTOTEST_DIALOG_FILE = foreign;
   const bad = await exec(`window.api.importRead()`);
-  check('чужий JSON відхилено', bad?.error === 'Це не резервна копія «Читалки».', bad?.error);
+  check('чужий JSON відхилено', bad?.error === 'Це не резервна копія Chytalka.', bad?.error);
   const broken = path.join(outDir, 'broken.json');
   fs.writeFileSync(broken, '{ not json');
   process.env.AUTOTEST_DIALOG_FILE = broken;

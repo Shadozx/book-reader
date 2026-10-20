@@ -1,5 +1,5 @@
 {
-  "app.name": "Читалка",
+  "app.name": "Chytalka",
 
   "toolbar.library": "Бібліотека — книги, які пам'ятає програма (Ctrl+L)",
   "toolbar.open": "Відкрити книгу (Ctrl+O)",
@@ -142,9 +142,9 @@
   "data.importOk": "Імпортувати",
   "data.uninstallTitle": "Видалення програми",
   "data.uninstallDevMessage": "Видалення доступне лише у встановленій програмі.",
-  "data.uninstallDevDetail": "Зараз «Читалка» запущена з папки проєкту (npm start). Щоб прибрати її, достатньо видалити папку проєкту.",
+  "data.uninstallDevDetail": "Зараз Chytalka запущена з папки проєкту (npm start). Щоб прибрати її, достатньо видалити папку проєкту.",
   "data.uninstallConfirmTitle": "Видалити програму",
-  "data.uninstallMessage": "Видалити «Читалку» з комп'ютера?",
+  "data.uninstallMessage": "Видалити Chytalka з комп'ютера?",
   "data.uninstallDetail": "Програма закриється й відкриється стандартний деінсталятор Windows. Він спитає, чи видаляти також ваші налаштування та закладки.\n\nФайли книг не видаляються.",
   "data.uninstallOk": "Видалити",
 
@@ -206,9 +206,9 @@
   "dialog.allBooks": "Усі книги",
   "dialog.allFiles": "Усі файли",
   "dialog.locateTitle": "Де тепер книга «{name}»?",
-  "dialog.exportTitle": "Експортувати дані «Читалки»",
-  "dialog.importTitle": "Імпортувати дані «Читалки»",
-  "dialog.backupFile": "Резервна копія «Читалки»",
+  "dialog.exportTitle": "Експортувати дані Chytalka",
+  "dialog.importTitle": "Імпортувати дані Chytalka",
+  "dialog.backupFile": "Резервна копія Chytalka",
   "dialog.importBroken": "Файл пошкоджений або це не файл даних (JSON).",
-  "dialog.importNotBackup": "Це не резервна копія «Читалки»."
+  "dialog.importNotBackup": "Це не резервна копія Chytalka."
 }

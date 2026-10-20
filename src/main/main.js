@@ -292,7 +292,7 @@ function registerIpc() {
     return true;
   });
 
-  // Uninstall: the standard uninstaller sits next to BookReader.exe (installed version only)
+  // Uninstall: the standard uninstaller sits next to Chytalka.exe (installed version only)
   ipcMain.handle('app:uninstall-info', async () => ({ installed: !!(await findUninstaller()) }));
 
   ipcMain.handle('app:uninstall', async () => {

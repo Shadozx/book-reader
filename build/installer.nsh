@@ -46,7 +46,7 @@
 
     ; Ask whether to also delete settings, bookmarks and reading positions (%APPDATA%\book-reader)
     IfSilent skipDeleteData
-    MessageBox MB_YESNO|MB_ICONQUESTION "Видалити також ваші налаштування, закладки та місця читання?$\r$\n$\r$\nОберіть «Ні», якщо плануєте встановити «Читалку» знову.$\r$\nФайли книг і резервні копії в «Документи\Chytalka» не видаляються." /SD IDNO IDNO skipDeleteData
+    MessageBox MB_YESNO|MB_ICONQUESTION "Видалити також ваші налаштування, закладки та місця читання?$\r$\n$\r$\nОберіть «Ні», якщо плануєте встановити програму знову.$\r$\nФайли книг і резервні копії в «Документи\Chytalka» не видаляються." /SD IDNO IDNO skipDeleteData
       SetShellVarContext current
       RMDir /r "$APPDATA\book-reader"
     skipDeleteData:
