@@ -3,3 +3,4 @@ node_modules/
 dist/
 samples/
 .builder-cache/
+test-results/

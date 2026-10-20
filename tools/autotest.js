@@ -1,10 +1,12 @@
 'use strict';
-// Autotest: electron tools/autotest.js <scenario.js> <output folder>
-// A scenario is a module exporting async (ctx) => { ... }
+// Autotest: electron tools/autotest.js <scenario.js> <output folder>   (npm test runs them all)
+// A scenario is a module exporting async (ctx) => { ... }; ctx holds the basic helpers below
+// plus the shared ones from tools/test-kit.js. The process exits with code 1 if a check fails.
 
 const { app, BrowserWindow } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { createKit, LANG } = require('./test-kit');
 
 const [scenarioArg, outArg] = process.argv.slice(2).filter((a) => !a.startsWith('-') && a !== '.');
 const scenarioPath = path.resolve(scenarioArg);
@@ -17,8 +19,8 @@ if (!process.env.AUTOTEST_KEEP_STATE) {
 app.setPath('userData', path.join(outDir, 'userdata'));
 process.env.AUTOTEST_AUTOCONFIRM ??= '1';
 process.env.CHYTALKA_BACKUP_DIR ??= path.join(outDir, 'backups');
-// Tests check Ukrainian texts, so "system language" is Ukrainian regardless of the machine
-process.env.CHYTALKA_SYSTEM_LANG ??= 'uk';
+// The interface language of the run doesn't depend on the machine: the "system language" is the test language
+process.env.CHYTALKA_SYSTEM_LANG ??= LANG;
 // AUTOTEST_APP=<path to app.asar>: test the already built (packaged) app (a relative path is taken from the current folder).
 // If the app can't be loaded, report it in the log and exit instead of Electron's error dialog, which would hang the run.
 try {
@@ -86,13 +88,19 @@ app.whenReady().then(async () => {
     },
     log,
   };
+  const kit = createKit(ctx);
+  Object.assign(ctx, kit);
 
+  let crashed = false;
   try {
     await wait(300);
     await require(scenarioPath)(ctx);
   } catch (err) {
     log('SCENARIO ERROR', err);
+    crashed = true;
   }
+  const passed = kit.results.filter((r) => r.ok).length;
+  if (kit.results.length) log(`RESULT ${passed}/${kit.results.length} passed`);
   await wait(600); // let the state saving finish
-  app.exit(0);
+  app.exit(crashed || passed < kit.results.length ? 1 : 0);
 });
