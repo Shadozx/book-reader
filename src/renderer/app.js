@@ -188,6 +188,7 @@ class Tab {
         if (title) this.record.title = title;
         this.record.author = author || '';
         this.setTitle(this.record.title);
+        showHighlights(this);
       }
     } catch (err) {
       console.error(err);
@@ -243,6 +244,7 @@ function openBook(path, { activate = true } = {}) {
 function activateTab(tab) {
   if (activeTab === tab) return;
   closeSearch();
+  hideMarkPopup();
   if (activeTab) {
     activeTab.tabEl.classList.remove('active');
     activeTab.paneEl.hidden = true;
@@ -490,9 +492,11 @@ async function applyLanguage() {
   updateToolbar();
   renderBookmarks();
   renderRecent();
+  buildMarkPopup();
 }
 
 function applySettingsToViewers() {
+  hideMarkPopup();
   applyBrightness();
   for (const tab of tabs) tab.viewer?.applySettings(store.settings);
   updateProgress();
@@ -592,6 +596,10 @@ function setupKeyboard() {
     else if (ctrl && key === 'd') toggleBookmark();
     else if (ctrl && key === 'l') toggleLibrary();
     else if (e.key === 'Escape' && libraryOpen()) closeLibrary();
+    else if (e.key === 'Escape' && markPopup.target) {
+      hideMarkPopup();
+      getSelection().removeAllRanges();
+    }
     else if (e.key === 'F3') searchStep(e.shiftKey ? -1 : 1);
     else if (ctrl && (e.code === 'Equal' || e.code === 'NumpadAdd' || e.key === '+')) zoomOrFont(1);
     else if (ctrl && (e.code === 'Minus' || e.code === 'NumpadSubtract')) zoomOrFont(-1);
@@ -1129,6 +1137,134 @@ let sidePanelView = 'toc';
 const sameLocation = (a, b) =>
   a && b && (Number.isInteger(a.page) ? a.page === b.page : a.c === b.c && a.b === b.b);
 
+/* ------------------------------------------------------------------
+ * Highlights: coloured marks on the text of FB2/EPUB books
+ * ------------------------------------------------------------------ */
+
+const HIGHLIGHT_COLORS = ['yellow', 'green', 'blue', 'pink'];
+// The popup over a selection (target: { kind: 'new', mark }) or over a saved highlight ({ kind: 'saved', id })
+const markPopup = { el: null, target: null };
+
+// Paints a tab's saved highlights and keeps where they were found (the book file may have changed)
+function showHighlights(tab) {
+  if (!tab.viewer?.setHighlights) return;
+  const saved = tab.record.highlights ?? [];
+  if (!saved.length) return;
+  for (const found of tab.viewer.setHighlights(saved)) {
+    const h = saved.find((x) => x.id === found.id);
+    if (found.status === 'lost') {
+      h.lost = true;
+    } else {
+      Object.assign(h, { anchor: found.anchor, quote: found.quote, prefix: found.prefix, suffix: found.suffix });
+      delete h.lost;
+    }
+  }
+  saveStore();
+}
+
+function buildMarkPopup() {
+  markPopup.el?.remove();
+  const button = (cls, title, content, handler) => {
+    const b = h('button', { type: 'button', class: cls, title, 'aria-label': title }, content);
+    b.addEventListener('click', handler);
+    return b;
+  };
+  markPopup.el = h('div', { class: 'mark-popup', hidden: true, role: 'toolbar', 'aria-label': t('highlight.toolbar') },
+    ...HIGHLIGHT_COLORS.map((color) => {
+      const b = button(`mark-color mark-${color}`, t(`highlight.${color}`), null, () => chooseHighlightColor(color));
+      b.dataset.color = color;
+      return b;
+    }),
+    button('icon-btn mark-copy', t('highlight.copy'), icon('copy', 16), copyHighlight),
+    button('icon-btn mark-delete', t('highlight.delete'), icon('trash', 16), deleteHighlight),
+  );
+  // Clicks in the popup must not drop the text selection
+  markPopup.el.addEventListener('mousedown', (e) => e.preventDefault());
+  document.getElementById('main').append(markPopup.el);
+  markPopup.target = null;
+}
+
+// Shows the popup over (or, without room, under) a piece of text
+function showMarkPopup(rect, target, color = null) {
+  const el = markPopup.el;
+  markPopup.target = target;
+  for (const b of el.querySelectorAll('.mark-color')) b.classList.toggle('on', b.dataset.color === color);
+  el.querySelector('.mark-delete').hidden = target.kind !== 'saved';
+  el.hidden = false;
+  const main = document.getElementById('main').getBoundingClientRect();
+  const { width, height } = el.getBoundingClientRect();
+  const left = Math.min(Math.max(rect.left + rect.width / 2 - width / 2 - main.left, 8), main.width - width - 8);
+  let top = rect.top - main.top - height - 8;
+  if (top < 8) top = rect.bottom - main.top + 8;
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+}
+
+function hideMarkPopup() {
+  if (!markPopup.el) return;
+  markPopup.el.hidden = true;
+  markPopup.target = null;
+}
+
+const savedHighlight = (id) => activeTab?.record.highlights?.find((x) => x.id === id);
+
+function chooseHighlightColor(color) {
+  const tab = activeTab;
+  const target = markPopup.target;
+  if (!tab || !target) return;
+  if (target.kind === 'new') {
+    const { anchor, quote, prefix, suffix } = target.mark;
+    tab.record.highlights ??= [];
+    tab.record.highlights.push({ id: crypto.randomUUID(), color, quote, prefix, suffix, anchor, created: Date.now() });
+    getSelection().removeAllRanges();
+  } else {
+    savedHighlight(target.id).color = color;
+  }
+  hideMarkPopup();
+  showHighlights(tab);
+  saveStore();
+}
+
+function deleteHighlight() {
+  const tab = activeTab;
+  if (!tab || markPopup.target?.kind !== 'saved') return;
+  tab.record.highlights = tab.record.highlights.filter((x) => x.id !== markPopup.target.id);
+  hideMarkPopup();
+  tab.viewer.setHighlights(tab.record.highlights);
+  saveStore();
+}
+
+async function copyHighlight() {
+  const target = markPopup.target;
+  if (!target) return;
+  const text = target.kind === 'new' ? target.mark.quote : savedHighlight(target.id)?.quote;
+  hideMarkPopup();
+  getSelection().removeAllRanges();
+  if (!text) return;
+  await api.copyText(text);
+  toast(t('highlight.copied'));
+}
+
+function setupHighlights() {
+  buildMarkPopup();
+  // A finished selection in a text book gets the popup
+  els.panes.addEventListener('mouseup', () => setTimeout(() => {
+    const mark = activeTab?.viewer?.selectionMark?.();
+    if (mark) showMarkPopup(mark.rect, { kind: 'new', mark });
+  }, 0));
+  // A click on a saved highlight (with nothing selected) opens it
+  els.panes.addEventListener('click', (e) => {
+    if (!getSelection().isCollapsed) return;
+    const hit = activeTab?.viewer?.highlightAt?.(e.clientX, e.clientY);
+    if (hit) showMarkPopup(hit.rect, { kind: 'saved', id: hit.id }, savedHighlight(hit.id)?.color);
+  });
+  // Anything else closes it: a click elsewhere, scrolling
+  document.addEventListener('mousedown', (e) => {
+    if (markPopup.target && !markPopup.el.contains(e.target)) hideMarkPopup();
+  });
+  els.panes.addEventListener('scroll', hideMarkPopup, true);
+}
+
 function flatToc(viewer) {
   const flat = [];
   const walk = (items) => items.forEach((it) => { flat.push(it); if (it.children) walk(it.children); });
@@ -1326,6 +1462,7 @@ async function init() {
   setupPanels();
   setupSearch();
   setupBookmarks();
+  setupHighlights();
   setupLibrary();
   setupWheelZoom();
   api.onOpenFiles((files) => files.forEach((f, i) => openBook(f, { activate: i === files.length - 1 })));

@@ -905,6 +905,45 @@ button, select {
 }
 #search-count.none { color: #d0473b; }
 
+/* ---------- Highlights (saved marks on the text) ---------- */
+::highlight(hl-yellow) { background-color: rgba(255, 214, 0, 0.42); }
+::highlight(hl-green) { background-color: rgba(80, 200, 100, 0.38); }
+::highlight(hl-blue) { background-color: rgba(70, 150, 255, 0.36); }
+::highlight(hl-pink) { background-color: rgba(255, 110, 180, 0.36); }
+/* Softer on a dark page, so light text stays readable */
+:root[data-theme="dark"] ::highlight(hl-yellow) { background-color: rgba(255, 214, 0, 0.3); }
+:root[data-theme="dark"] ::highlight(hl-green) { background-color: rgba(80, 200, 100, 0.3); }
+:root[data-theme="dark"] ::highlight(hl-blue) { background-color: rgba(70, 150, 255, 0.34); }
+:root[data-theme="dark"] ::highlight(hl-pink) { background-color: rgba(255, 110, 180, 0.3); }
+
+.mark-popup {
+  position: absolute;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 10px;
+  background: var(--tab-active-bg);
+  color: var(--chrome-fg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+}
+.mark-popup[hidden] { display: none; }
+.mark-color {
+  width: 22px;
+  height: 22px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.mark-color.on { border-color: var(--chrome-fg); }
+.mark-yellow { background: #f5c400; }
+.mark-green { background: #4cb963; }
+.mark-blue { background: #3d8ef0; }
+.mark-pink { background: #f06aa8; }
+.mark-popup .icon-btn { width: 28px; height: 28px; }
+
 ::highlight(search-hit) { background-color: rgba(255, 196, 0, 0.45); }
 ::highlight(search-current) { background-color: rgba(255, 110, 0, 0.75); }
 

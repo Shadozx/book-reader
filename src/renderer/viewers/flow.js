@@ -7,6 +7,7 @@
 
 import { h } from '../util.js';
 import { t } from '../i18n.js';
+import { describe, locate } from '../anchors.js';
 
 // Blocks used to track the location (mostly "leaf" elements with text)
 const BLOCK_SELECTOR = [
@@ -23,6 +24,18 @@ const PAGE_BOTTOM = 48;     // from the bottom (the page number is there), px
 const SPREAD_MIN = 900;     // minimum text width for two pages side by side, px
 
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+// Saved highlights are painted with the CSS Custom Highlight API: one Highlight per colour, shared by
+// every open book, each viewer adding and removing its own ranges
+const highlightLayers = new Map();
+function highlightLayer(color) {
+  if (!highlightLayers.has(color)) {
+    const layer = new Highlight();
+    CSS.highlights.set(`hl-${color}`, layer);
+    highlightLayers.set(color, layer);
+  }
+  return highlightLayers.get(color);
+}
 
 export function createFlowViewer({ book, container, settings, location: initialLocation, onLocationChange }) {
   const chunks = book.chunks;
@@ -114,7 +127,7 @@ export function createFlowViewer({ book, container, settings, location: initialL
 
   function applySettings(s) {
     const layoutChanged = mode === null || LAYOUT_KEYS.some((k) => s[k] !== current[k]);
-    if (layoutChanged && isVisible() && mode !== null) location = locate();
+    if (layoutChanged && isVisible() && mode !== null) location = findLocation();
     current = { ...s };
     setCssVars(s);
     if (!layoutChanged) return;
@@ -301,7 +314,7 @@ export function createFlowViewer({ book, container, settings, location: initialL
 
   /* ---------- Shared: location, navigation, progress ---------- */
 
-  function locate() {
+  function findLocation() {
     if (!isVisible() || needsRestore || anchored) return location;
     return mode === 'paged' ? pagedLocate() : scrollLocate();
   }
@@ -327,7 +340,7 @@ export function createFlowViewer({ book, container, settings, location: initialL
     locateTimer = setTimeout(() => {
       locateTimer = 0;
       if (needsRestore || !isVisible()) return;
-      if (!anchored) location = locate();
+      if (!anchored) location = findLocation();
       onLocationChange();
     }, 30);
   }
@@ -516,6 +529,8 @@ export function createFlowViewer({ book, container, settings, location: initialL
       return;
     }
     if (e.target.closest('a[href]') || hadNote) return;
+    // A click on a highlight belongs to the highlight, not to page turning
+    if (highlightAt(e.clientX, e.clientY)) return;
 
     // A click on the page edges turns the page
     if (mode === 'paged' && !window.getSelection().toString()) {
@@ -585,7 +600,7 @@ export function createFlowViewer({ book, container, settings, location: initialL
   /* ---------- Search ---------- */
 
   const MAX_MATCHES = 5000;
-  const textIndex = new Map();   // part index → { text (lowercase), nodes: [{ node, start }] }
+  const textIndex = new Map();   // part index → { raw, text (lowercase), nodes: [{ node, start }] }
   let matches = [];              // [{ c, range }]
   let matchIndex = -1;
 
@@ -598,13 +613,13 @@ export function createFlowViewer({ book, container, settings, location: initialL
         nodes.push({ node: walker.currentNode, start: text.length });
         text += walker.currentNode.data;
       }
-      textIndex.set(c, { text: text.toLowerCase(), nodes });
+      textIndex.set(c, { raw: text, text: text.toLowerCase(), nodes });
     }
     return textIndex.get(c);
   }
 
-  function rangeAt(nodes, start, length) {
-    const locate = (pos) => {
+  function rangeAt(nodes, start, length, Kind = Range) {
+    const nodeAt = (pos) => {
       let lo = 0;
       let hi = nodes.length - 1;
       while (lo < hi) {
@@ -614,8 +629,11 @@ export function createFlowViewer({ book, container, settings, location: initialL
       }
       return nodes[lo];
     };
-    const a = locate(start);
-    const b = locate(start + length - 1);
+    const a = nodeAt(start);
+    const b = nodeAt(start + length - 1);
+    if (Kind === StaticRange) {
+      return new StaticRange({ startContainer: a.node, startOffset: start - a.start, endContainer: b.node, endOffset: start + length - b.start });
+    }
     const range = document.createRange();
     range.setStart(a.node, start - a.start);
     range.setEnd(b.node, start + length - b.start);
@@ -624,10 +642,18 @@ export function createFlowViewer({ book, container, settings, location: initialL
 
   function paintMatches() {
     if (!window.CSS?.highlights) return;
-    CSS.highlights.set('search-hit', new Highlight(...matches.map((m) => m.range)));
+    // Search is painted over saved highlights
+    const hits = new Highlight(...matches.map((m) => m.range));
+    hits.priority = 1;
+    CSS.highlights.set('search-hit', hits);
     const current = matches[matchIndex];
-    if (current) CSS.highlights.set('search-current', new Highlight(current.range));
-    else CSS.highlights.delete('search-current');
+    if (current) {
+      const shown = new Highlight(current.range);
+      shown.priority = 2;
+      CSS.highlights.set('search-current', shown);
+    } else {
+      CSS.highlights.delete('search-current');
+    }
   }
 
   function revealMatch(m) {
@@ -688,6 +714,126 @@ export function createFlowViewer({ book, container, settings, location: initialL
     }
   }
 
+  /* ---------- Highlights ---------- */
+
+  // A part element moves between the scroll and paged containers, which collapses live Ranges.
+  // Its text nodes stay the same, so highlights use StaticRange, which isn't affected by the move.
+  // Highlights are kept in the order they were made, and a later one lies over an earlier one:
+  // where they overlap only the later one is painted and gets the clicks.
+  let marks = [];   // [{ id, color, c, start, end, ranges }]: ranges are the visible pieces
+
+  const partTexts = () => chunks.map((_, c) => indexOf(c).raw);
+
+  // Character offset of a DOM position within the text of part c
+  function offsetIn(c, node, offset) {
+    const range = document.createRange();
+    range.setStart(chunks[c].el, 0);
+    range.setEnd(node, offset);
+    return range.toString().length;
+  }
+
+  const partOf = (node) => chunks.findIndex((ch) => ch.el.contains(node));
+
+  // The text selected in this book as a highlight to save: { anchor, quote, prefix, suffix, rect },
+  // or null. A selection over several parts is cut at the end of the first one.
+  function selectionMark() {
+    const selection = getSelection();
+    if (!selection.rangeCount || selection.isCollapsed) return null;
+    const range = selection.getRangeAt(0);
+    const c = partOf(range.startContainer);
+    if (c < 0) return null;
+    const startOffset = offsetIn(c, range.startContainer, range.startOffset);
+    const endOffset = chunks[c].el.contains(range.endContainer)
+      ? offsetIn(c, range.endContainer, range.endOffset)
+      : indexOf(c).raw.length;
+    // Without the spaces a double-click or a drag picks up at the ends
+    const raw = indexOf(c).raw;
+    let start = startOffset;
+    let end = endOffset;
+    while (start < end && /\s/.test(raw[start])) start++;
+    while (end > start && /\s/.test(raw[end - 1])) end--;
+    if (start >= end) return null;
+    return { ...describe(partTexts(), c, start, end), rect: range.getBoundingClientRect() };
+  }
+
+  function unpaint() {
+    for (const m of marks) for (const r of m.ranges) highlightLayer(m.color).delete(r);
+    marks = [];
+  }
+
+  // The pieces of a highlight not covered by later ones: [[start, end], …]
+  function visiblePieces(mark, later) {
+    let pieces = [[mark.start, mark.end]];
+    for (const m of later) {
+      if (m.c !== mark.c) continue;
+      pieces = pieces.flatMap(([s, e]) => (m.end <= s || m.start >= e ? [[s, e]] : [[s, m.start], [m.end, e]].filter(([a, b]) => b > a)));
+    }
+    return pieces;
+  }
+
+  // A Range over a highlight's whole text (for its text and position on the screen)
+  const wholeRange = (mark) => rangeAt(indexOf(mark.c).nodes, mark.start, mark.end - mark.start);
+
+  // Finds the saved highlights in the text and paints them. Returns, for each one, where it was found
+  // ({ id, status, anchor, quote, prefix, suffix }), or { id, status: 'lost' } if it wasn't.
+  function setHighlights(list) {
+    unpaint();
+    const parts = partTexts();
+    const found = [];
+    for (const saved of list) {
+      const where = locate(parts, saved);
+      if (where.status === 'lost') {
+        found.push({ id: saved.id, status: 'lost' });
+        continue;
+      }
+      marks.push({ id: saved.id, color: saved.color, c: where.c, start: where.start, end: where.end, ranges: [] });
+      found.push({ id: saved.id, status: where.status, ...describe(parts, where.c, where.start, where.end) });
+    }
+    marks.forEach((m, i) => {
+      const nodes = indexOf(m.c).nodes;
+      m.ranges = visiblePieces(m, marks.slice(i + 1)).map(([s, e]) => rangeAt(nodes, s, e - s, StaticRange));
+      for (const r of m.ranges) highlightLayer(m.color).add(r);
+    });
+    return found;
+  }
+
+  // What is painted now: [{ id, color, text, shown, painted, rect }]
+  // text: the whole highlight; shown: the pieces you can see (not covered by later highlights);
+  // painted: all those pieces are in the colour's layer; rect: its first line on the screen
+  function paintedHighlights() {
+    return marks.map((m) => {
+      const r = wholeRange(m).getClientRects()[0] ?? new DOMRect();
+      const shown = m.ranges.map((s) => {
+        const piece = document.createRange();
+        piece.setStart(s.startContainer, s.startOffset);
+        piece.setEnd(s.endContainer, s.endOffset);
+        return piece.toString();
+      });
+      return {
+        id: m.id,
+        color: m.color,
+        text: wholeRange(m).toString(),
+        shown,
+        painted: m.ranges.every((s) => highlightLayer(m.color).has(s)),
+        rect: { x: r.x, y: r.y, width: r.width, height: r.height },
+      };
+    });
+  }
+
+  // The highlight under a point of the window: { id, rect } or null
+  function highlightAt(x, y) {
+    if (!marks.length) return null;
+    const caret = document.caretPositionFromPoint(x, y);
+    if (!caret || !root.contains(caret.offsetNode)) return null;
+    const c = partOf(caret.offsetNode);
+    if (c < 0) return null;
+    const offset = offsetIn(c, caret.offsetNode, caret.offset);
+    // The latest highlight at this point is the one on top
+    const mark = marks.findLast((m) => m.c === c && offset >= m.start && offset < m.end);
+    if (!mark) return null;
+    return { id: mark.id, rect: wholeRange(mark).getBoundingClientRect() };
+  }
+
   /* ---------- Resizing, image loading ---------- */
 
   let lastSize = '';
@@ -696,7 +842,7 @@ export function createFlowViewer({ book, container, settings, location: initialL
     if (size === lastSize || !isVisible()) return;
     const firstTime = lastSize === '';
     lastSize = size;
-    if (!firstTime && !needsRestore) location = locate();
+    if (!firstTime && !needsRestore) location = findLocation();
     needsRestore = true;
     restore();
   });
@@ -708,7 +854,7 @@ export function createFlowViewer({ book, container, settings, location: initialL
     if (mode !== 'paged') return;
     clearTimeout(imageTimer);
     imageTimer = setTimeout(() => {
-      const loc = locate();
+      const loc = findLocation();
       pagedMeasure();
       location = loc;
       needsRestore = true;
@@ -729,6 +875,10 @@ export function createFlowViewer({ book, container, settings, location: initialL
     search,
     searchStep,
     clearSearch,
+    selectionMark,
+    setHighlights,
+    highlightAt,
+    paintedHighlights,
     progress,
     currentTocIndex,
     chapterInfo,
@@ -740,6 +890,7 @@ export function createFlowViewer({ book, container, settings, location: initialL
     },
     destroy() {
       clearSearch();
+      unpaint();
       resizeObserver.disconnect();
       clearTimeout(locateTimer);
       clearTimeout(imageTimer);

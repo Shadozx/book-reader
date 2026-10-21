@@ -17,6 +17,7 @@ the app is called Chytalka in every interface language.
 - **Reading position** is remembered for every book and survives changes of font, window size or mode.
 - **Current chapter:** below the book title you see which chapter you are in, how much of it you've read and how much time is left until its end; a thin bar under the toolbar shows the chapter progress. The time is based on your reading speed: it starts with a typical one (≈1100 characters per minute or ≈1.4 min per scanned page) and then adapts to you; jumps through the contents, going back and breaks are ignored.
 - **Table of contents**, **bookmarks**, **text search**, **go to** a page or a percentage.
+- **Highlights (FB2/EPUB):** select a phrase with the mouse and pick one of four colours in the popup over it; a click on a highlight changes its colour, copies or deletes it. Highlights are tied to the text, not to the screen, so they stay in place when the font, mode or window size changes, and are found again if the book file is edited.
 - **Footnotes** in FB2/EPUB open in a popup.
 - **Text selection and copying** in PDF and DjVu (if the file has a text layer).
 
@@ -212,7 +213,9 @@ npm test
 runs every scenario in `tools/scenarios/` one after another and prints a summary; the exit code is 1
 if anything failed. Each scenario starts the app with its own temporary data folder (your settings
 and backups are not touched), performs actions the way a user does and checks the result.
-Logs and screenshots go to `test-results/<scenario>/`.
+Logs and screenshots go to `test-results/<scenario>/`. The app's window works out of sight
+(off the screen, without a taskbar button, without taking the focus), so you can keep working
+while the tests run; set `AUTOTEST_VISIBLE=1` to watch it instead.
 
 ```bash
 npm test -- epub reading-settings
@@ -286,6 +289,9 @@ npx electron tools/autotest.js tools/scenarios/epub.scenario.js test-results/epu
 | `resize` | text and images fit windows of different sizes |
 | `search`, `bookmarks`, `chapter`, `toc-jump` | search, bookmarks (also after a restart), current chapter, jumping through the contents |
 | `highlights-anchors` | finding a highlight again after the book text changed (moved, duplicated, edited, deleted) |
+| `highlights-basic`, `highlights-epub` | highlighting with a real mouse drag, changing the colour, copying, deleting, Esc; the same in EPUB |
+| `highlights-restart` | highlights in different colours after the app is closed and started again |
+| `highlights-overlap` | a highlight over part of another one is painted on top and gets the clicks; deleting it shows the one under it again |
 | `reading-time` | time to the end of the chapter, reading speed adaptation |
 | `close-tabs` | closing tabs of every format (close button, middle button, Ctrl+W) with real mouse clicks |
 | `data` | the app panel, reset settings, clear history, "Reset everything", the uninstall button in the dev version |

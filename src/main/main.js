@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, net, shell, screen, clipboard } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
@@ -96,7 +96,8 @@ function createWindow(bounds) {
   mainWindow.setMenu(null);
   if (bounds?.maximized) mainWindow.maximize();
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  // Autotests show the window without taking the focus from what the user is doing (see tools/autotest.js)
+  mainWindow.once('ready-to-show', () => (process.env.AUTOTEST_BACKGROUND ? mainWindow.showInactive() : mainWindow.show()));
 
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
@@ -315,6 +316,9 @@ function registerIpc() {
   ipcMain.handle('app:set-language', (_e, setting) => setLanguage(setting));
 
   ipcMain.handle('app:version', () => APP_VERSION);
+
+  // Copying through the system clipboard works whether or not the window has focus
+  ipcMain.handle('clipboard:write', (_e, text) => clipboard.writeText(String(text)));
 
   ipcMain.handle('app:initial-files', () => {
     const files = pendingFiles;

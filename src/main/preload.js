@@ -25,5 +25,6 @@ contextBridge.exposeInMainWorld('api', {
   uninstall: () => ipcRenderer.invoke('app:uninstall'),
   setLanguage: (setting) => ipcRenderer.invoke('app:set-language', setting),
   appVersion: () => ipcRenderer.invoke('app:version'),
+  copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   onOpenFiles: (callback) => ipcRenderer.on('open-files', (_e, files) => callback(files)),
 });

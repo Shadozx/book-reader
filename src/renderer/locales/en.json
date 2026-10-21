@@ -72,6 +72,15 @@
   "bookmark.removed": "Bookmark removed",
   "bookmark.page": "Page {n}",
 
+  "highlight.toolbar": "Highlight",
+  "highlight.yellow": "Yellow",
+  "highlight.green": "Green",
+  "highlight.blue": "Blue",
+  "highlight.pink": "Pink",
+  "highlight.copy": "Copy",
+  "highlight.copied": "Copied",
+  "highlight.delete": "Delete highlight",
+
   "toast.font": "Font: {size} px",
   "toast.zoom": "Zoom: {percent}%",
   "toast.zoomPage": "Zoom: fit page",

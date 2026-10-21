@@ -21,6 +21,15 @@ fs.mkdirSync(outDir, { recursive: true });
 if (step === 0) fs.rmSync(path.join(outDir, 'userdata'), { recursive: true, force: true });
 app.setPath('userData', path.join(outDir, 'userdata'));
 process.env.AUTOTEST_AUTOCONFIRM ??= '1';
+// The window works out of sight: off the screen, without a taskbar button and without taking the focus,
+// so tests don't get in the way of whatever else is on the screen. AUTOTEST_VISIBLE=1 shows it to watch a run.
+const background = !process.env.AUTOTEST_VISIBLE;
+if (background) {
+  process.env.AUTOTEST_BACKGROUND = '1';
+  // Windows treats an off-screen window as covered, and Chromium then stops painting it and running
+  // animation frames; this turns that check off for the test run
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+}
 process.env.CHYTALKA_BACKUP_DIR ??= path.join(outDir, 'backups');
 // The interface language of the run doesn't depend on the machine: the "system language" is the test language
 process.env.CHYTALKA_SYSTEM_LANG ??= LANG;
@@ -45,13 +54,18 @@ async function getWindow() {
 
 app.whenReady().then(async () => {
   const win = await getWindow();
+  if (background) {
+    win.setSkipTaskbar(true);
+    win.setPosition(-20000, -20000);
+  }
   const wc = win.webContents;
   wc.on('console-message', (event) => log(`console.${event.level}:`, event.message));
   wc.on('render-process-gone', (_e, details) => log('RENDERER CRASH', details));
   if (wc.isLoading()) await new Promise((r) => wc.once('did-finish-load', r));
   wc.setBackgroundThrottling(false);
   win.setContentSize(1280, 860);
-  win.show();
+  if (background) win.showInactive();
+  else win.show();
 
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const ctx = {
@@ -84,6 +98,20 @@ app.whenReady().then(async () => {
       wc.sendInputEvent({ type: 'mouseDown', x, y, button, clickCount: 1 });
       wc.sendInputEvent({ type: 'mouseUp', x, y, button, clickCount: 1 });
       await wait(60);
+    },
+    // A real mouse drag (selects text the way a user does)
+    async drag(x1, y1, x2, y2) {
+      // The moves carry "left button held", otherwise Chromium takes them for plain hovering
+      const held = ['leftButtonDown'];
+      wc.sendInputEvent({ type: 'mouseMove', x: x1, y: y1 });
+      wc.sendInputEvent({ type: 'mouseDown', x: x1, y: y1, button: 'left', clickCount: 1 });
+      await wait(30);
+      for (let i = 1; i <= 8; i++) {
+        wc.sendInputEvent({ type: 'mouseMove', x: Math.round(x1 + ((x2 - x1) * i) / 8), y: Math.round(y1 + ((y2 - y1) * i) / 8), modifiers: held });
+        await wait(20);
+      }
+      wc.sendInputEvent({ type: 'mouseUp', x: x2, y: y2, button: 'left', clickCount: 1, modifiers: held });
+      await wait(100);
     },
     key: (keyCode, modifiers = []) => {
       wc.sendInputEvent({ type: 'keyDown', keyCode, modifiers });

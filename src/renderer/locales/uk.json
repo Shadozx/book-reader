@@ -72,6 +72,15 @@
   "bookmark.removed": "Закладку прибрано",
   "bookmark.page": "Сторінка {n}",
 
+  "highlight.toolbar": "Виділення",
+  "highlight.yellow": "Жовтий",
+  "highlight.green": "Зелений",
+  "highlight.blue": "Синій",
+  "highlight.pink": "Рожевий",
+  "highlight.copy": "Копіювати",
+  "highlight.copied": "Скопійовано",
+  "highlight.delete": "Видалити виділення",
+
   "toast.font": "Шрифт: {size} px",
   "toast.zoom": "Масштаб: {percent}%",
   "toast.zoomPage": "Масштаб: цілком",

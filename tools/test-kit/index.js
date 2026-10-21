@@ -12,7 +12,7 @@
 //   t(key, params)            the interface text in the language the tests run in (locales/*.json)
 //   press(key, modifiers)     a key press as the window receives it
 // By topic (one file each, see their headers):
-//   reader, sidePanel, bookmarks, readingSettings, appPanel
+//   reader, sidePanel, bookmarks, readingSettings, appPanel, highlights
 // Older scenarios also use open(), tocItem(), pagesReady() and location() directly.
 
 const path = require('node:path');
@@ -131,6 +131,7 @@ function createKit(base) {
   kit.bookmarks = require('./bookmarks')(kit);
   kit.readingSettings = require('./panels').readingSettings(kit);
   kit.appPanel = require('./panels').appPanel(kit);
+  kit.highlights = require('./highlights')(kit);
 
   // Short names the older scenarios use
   kit.open = (role, options) => kit.reader.open(role, options);
