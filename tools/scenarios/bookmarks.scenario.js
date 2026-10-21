@@ -1,56 +1,75 @@
-// Bookmarks: none at first, Ctrl+D adds one, it's in the side panel and leads back to its place,
-// a second Ctrl+D removes it; PDF bookmarks are named by page; bookmarks survive a restart.
+// Bookmarks in a text book and in a PDF, and after a restart
 
 module.exports = [
-  async ({ open, exec, wait, check, press, tocItem, location, t, shot }) => {
-    const count = () => exec(`(app.activeTab.record.bookmarks ?? []).length`);
-    const highlighted = () => exec(`document.getElementById('btn-bookmark').classList.contains('active')`);
-    const listed = () => exec(`document.querySelectorAll('#bookmark-list .bookmark-item').length`);
+  // First run
+  async ({ step, reader, bookmarks, sidePanel, check, t }) => {
+    let marked;
 
-    await exec(`app.updateSettings({ mode: 'scroll' })`);
-    await open('fb2');
-    check('a new book has no bookmarks', (await count()) === 0 && !(await highlighted()));
+    await step('A new book has no bookmarks', async () => {
+      await reader.setMode('scroll');
+      await reader.open('fb2');
+      check('no bookmarks yet', (await bookmarks.count()) === 0);
+      check('the bookmark button is not lit', !(await bookmarks.isButtonLit()));
+    });
 
-    await tocItem(8);
-    await wait(700);
-    const marked = await location();
-    await press('d', { ctrl: true });
-    check('Ctrl+D adds a bookmark', (await count()) === 1);
-    check('the bookmark button lights up', await highlighted());
-    check('the bookmark is labelled with its chapter and text', await exec(`(() => { const b = app.activeTab.record.bookmarks[0]; return b.chapter.length > 0 && b.text.length > 10; })()`));
+    await step('Ctrl+D adds a bookmark here', async () => {
+      await reader.goToContentsItem(8);
+      marked = await reader.location();
+      await bookmarks.toggle();
+      check('one bookmark', (await bookmarks.count()) === 1);
+      check('the bookmark button is lit', await bookmarks.isButtonLit());
+      const [bookmark] = await bookmarks.all();
+      check('it is named by its chapter and text', bookmark.chapter.length > 0 && bookmark.text.length > 10, `${bookmark.chapter}: ${bookmark.text.slice(0, 40)}…`);
+    });
 
-    await tocItem(20);
-    await wait(600);
-    check('elsewhere the button is not lit', !(await highlighted()));
-    await exec(`app.showSidePanel('bookmarks')`);
-    check('the bookmark is listed in the side panel', (await listed()) === 1);
-    await shot('bookmarks-01-panel');
+    await step('Elsewhere in the book the button is not lit', async () => {
+      await reader.goToContentsItem(20);
+      check('the bookmark button is not lit', !(await bookmarks.isButtonLit()));
+    });
 
-    await exec(`document.querySelector('#bookmark-list .bookmark-item').click()`);
-    await wait(700);
-    const back = await location();
-    check('a click on the bookmark returns to its place', back.c === marked.c && back.b === marked.b, `${JSON.stringify(marked)} → ${JSON.stringify(back)}`);
+    await step('The bookmark is in the side panel and leads back', async () => {
+      await sidePanel.open('bookmarks');
+      check('one entry in the list', (await sidePanel.itemCount('bookmarks')) === 1);
+      await sidePanel.clickItem('bookmarks', 0);
+      const back = await reader.location();
+      check('back at the bookmarked place', reader.samePlace(back, marked), `${JSON.stringify(marked)} → ${JSON.stringify(back)}`);
+    });
 
-    await press('d', { ctrl: true });
-    check('Ctrl+D on the same place removes the bookmark', (await count()) === 0 && (await listed()) === 0 && !(await highlighted()));
-    await press('d', { ctrl: true });   // one bookmark stays for the restart check
+    await step('Ctrl+D on the same place removes the bookmark', async () => {
+      await bookmarks.toggle();
+      check('no bookmarks', (await bookmarks.count()) === 0);
+      check('the list is empty', (await sidePanel.itemCount('bookmarks')) === 0);
+      check('the bookmark button is not lit', !(await bookmarks.isButtonLit()));
+    });
 
-    // PDF: named by page; a book without contents opens the side panel on bookmarks
-    await open('pdf');
-    const page = Math.floor((await exec(`app.activeTab.viewer.pageCount`)) / 2);
-    await exec(`app.activeTab.viewer.goTo({ page: ${page}, f: 0 })`);
-    await wait(500);
-    await exec(`document.getElementById('btn-bookmark').click()`);
-    const label = await exec(`app.activeTab.record.bookmarks?.[0]?.text`);
-    check('a PDF bookmark is named by its page', label === t('bookmark.page', { n: page + 1 }), label);
-    check('without contents the side panel opens on bookmarks', await exec(`(() => { document.getElementById('toc-panel').hidden = true; document.getElementById('btn-toc').click(); return !document.getElementById('bookmark-list').hidden; })()`));
-    await shot('bookmarks-02-pdf');
+    await step('Add the bookmark again, to check it after a restart', async () => {
+      await bookmarks.toggle();
+      check('one bookmark', (await bookmarks.count()) === 1);
+    });
+
+    await step('A PDF bookmark is named by its page', async () => {
+      await reader.open('pdf');
+      const page = Math.floor((await reader.pageCount()) / 2);
+      await reader.goToPage(page);
+      await bookmarks.clickButton();
+      const [bookmark] = await bookmarks.all();
+      check('named "page N"', bookmark?.text === t('bookmark.page', { n: page + 1 }), bookmark?.text);
+    });
+
+    await step('A book without contents opens the side panel on bookmarks', async () => {
+      await sidePanel.openWithButton();
+      check('the bookmarks tab is shown', (await sidePanel.shownTab()) === 'bookmarks');
+    });
   },
 
   // After a restart
-  async ({ exec, waitFor, check }) => {
-    await waitFor(`app.tabs.length === 2 && app.tabs.every((t) => t.viewer)`, 60000);
-    const counts = await exec(`app.tabs.map((t) => t.format + ':' + (t.record.bookmarks ?? []).length).join()`);
-    check('after a restart: both bookmarks are still there', counts === 'fb2:1,pdf:1', counts);
+  async ({ step, exec, waitFor, check }) => {
+    await step('Both bookmarks are still there', async () => {
+      await waitFor(`app.tabs.length === 2 && app.tabs.every((t) => t.viewer)`, 60000);
+      const counts = await exec(`app.tabs.map((t) => t.format + ':' + (t.record.bookmarks ?? []).length).join()`);
+      check('one bookmark in the FB2 and one in the PDF', counts === 'fb2:1,pdf:1', counts);
+    });
   },
 ];
+
+module.exports.title = 'Bookmarks in a text book and in a PDF, and after a restart';

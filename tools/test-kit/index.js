@@ -1,25 +1,27 @@
 'use strict';
-// Helpers shared by the autotest scenarios. tools/autotest.js passes them to every scenario
-// together with the basic ones (exec, waitFor, wait, shot, resize, click, log).
+// Helpers for the autotest scenarios. tools/autotest.js passes them to every scenario together with
+// the basic ones (exec, waitFor, wait, shot, resize, click, log).
 //
+// Core (this file):
+//   step(name, fn)            a small named part of a scenario; an error fails that step only
+//   act(text)                 writes an action to the log ("→ press Ctrl+D"); every helper action does it
 //   check(name, ok, detail)   records a result; autotest.js prints the summary and sets the exit code
-//   skip(reason)              notes a check that can't run here (a missing optional book)
-//   book(role)                path to a test book by role (tools/test-books.json)
-//   has(role)                 whether that book is available (optional real books may be missing)
+//   skip(reason)              notes something that can't be checked here (a missing optional book)
+//   book(role) / has(role)    a test book by role (tools/test-books.json) / whether it's available
 //   facts                     what the generated books contain (tools/fixtures/facts.json)
-//   open(role)                opens a test book and waits until it's shown
 //   t(key, params)            the interface text in the language the tests run in (locales/*.json)
 //   press(key, modifiers)     a key press as the window receives it
-//   tocItem(index)            jumps to a table of contents entry, like a click in the side panel
-//   pagesReady()              waits until the visible PDF/DjVu pages are drawn
-//   location()                the current reading position of the active tab
+// By topic (one file each, see their headers):
+//   reader, sidePanel, bookmarks, readingSettings, appPanel
+// Older scenarios also use open(), tocItem(), pagesReady() and location() directly.
 
 const path = require('node:path');
 const fs = require('node:fs');
 
-const ROOT = path.resolve(__dirname, '..');
-const BOOKS = require('./test-books.json');
-const FIXTURES = path.join(__dirname, 'fixtures');
+const TOOLS = path.resolve(__dirname, '..');
+const ROOT = path.resolve(TOOLS, '..');
+const BOOKS = require('../test-books.json');
+const FIXTURES = path.join(TOOLS, 'fixtures');
 // Optional real books: samples/ unless CHYTALKA_SAMPLES_DIR points elsewhere
 const SAMPLES_DIR = process.env.CHYTALKA_SAMPLES_DIR || path.join(ROOT, 'samples');
 const LOCALES = { uk: 'uk-UA', en: 'en-GB' };
@@ -50,13 +52,18 @@ function keyCode(key) {
   return { '=': 'Equal', '+': 'Equal', '-': 'Minus' }[key] ?? key;
 }
 
+function keyName(key, { ctrl, shift }) {
+  return [ctrl && 'Ctrl', shift && 'Shift', key.length === 1 ? key.toUpperCase() : key].filter(Boolean).join('+');
+}
+
 function bookPath(role) {
   const entry = BOOKS[role];
   if (!entry || role.startsWith('_')) throw new Error(`Unknown book role "${role}" (see tools/test-books.json)`);
   return entry.fixture ? path.join(FIXTURES, entry.fixture) : path.join(SAMPLES_DIR, entry.sample);
 }
 
-function createKit({ exec, waitFor, wait, log }) {
+function createKit(base) {
+  const { exec, log } = base;
   const results = [];
   const skipped = [];
 
@@ -69,6 +76,18 @@ function createKit({ exec, waitFor, wait, log }) {
   function skip(reason) {
     skipped.push(reason);
     log(`SKIP ${reason}`);
+  }
+
+  const act = (text) => log(`→ ${text}`);
+
+  // A named part of a scenario. If it throws, that's one failed check and the scenario goes on.
+  async function step(name, fn) {
+    log(`STEP ${name}`);
+    try {
+      await fn(kit);
+    } catch (err) {
+      check(`${name}: ${err.message}`, false);
+    }
   }
 
   const has = (role) => fs.existsSync(bookPath(role));
@@ -84,61 +103,41 @@ function createKit({ exec, waitFor, wait, log }) {
     return file;
   }
 
-  async function open(role, { timeout = 60000 } = {}) {
-    const file = book(role);
-    await exec(`app.openBook(${JSON.stringify(file)})`);
-    const ok = await waitFor(`app.activeTab?.path === ${JSON.stringify(file)} && !!app.activeTab.viewer`, timeout);
-    if (!ok) {
-      const error = await exec(`app.activeTab?.paneEl.querySelector('.pane-message.error')?.innerText ?? null`);
-      throw new Error(`Could not open the "${role}" sample${error ? ': ' + error : ''}`);
-    }
-    return file;
-  }
-
-  function press(key, { ctrl = false, shift = false, code = keyCode(key) } = {}) {
+  function press(key, { ctrl = false, shift = false, code = keyCode(key), quiet = false } = {}) {
+    if (!quiet) act(`press ${keyName(key, { ctrl, shift })}`);
     return exec(`window.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, code: ${JSON.stringify(code)}, ctrlKey: ${ctrl}, shiftKey: ${shift}, bubbles: true }))`);
   }
 
-  async function tocItem(index) {
-    await exec(`(() => {
-      const panel = document.getElementById('toc-panel');
-      const wasHidden = panel.hidden;
-      if (wasHidden) document.getElementById('btn-toc').click();
-      app.showSidePanel('toc');
-      document.querySelectorAll('.toc-item')[${index}].click();
-      if (wasHidden) document.getElementById('btn-toc').click();
-    })()`);
-  }
-
-  // Visible pages of the active PDF/DjVu tab have their canvases drawn
-  async function pagesReady(timeout = 60000) {
-    await wait(150);
-    return waitFor(`(() => {
-      const pages = [...app.activeTab.paneEl.querySelectorAll('.fixed-page:not(.off)')]
-        .filter((p) => { const r = p.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; });
-      return pages.length > 0 && pages.every((p) => p.querySelector('canvas') && !p.classList.contains('loading'));
-    })()`, timeout);
-  }
-
-  const location = () => exec(`app.activeTab.viewer.getLocation()`);
-
-  return {
+  const kit = {
+    ...base,
     lang: LANG,
     t: translator(LANG),
     translator,
     check,
     skip,
+    step,
+    act,
     book,
     has,
     facts: JSON.parse(fs.readFileSync(path.join(FIXTURES, 'facts.json'), 'utf8')),
-    open,
     press,
-    tocItem,
-    pagesReady,
-    location,
     results,
     skipped,
   };
+
+  // Helpers by topic; each gets the kit and adds itself to it
+  kit.reader = require('./reader')(kit);
+  kit.sidePanel = require('./side-panel')(kit);
+  kit.bookmarks = require('./bookmarks')(kit);
+  kit.readingSettings = require('./panels').readingSettings(kit);
+  kit.appPanel = require('./panels').appPanel(kit);
+
+  // Short names the older scenarios use
+  kit.open = (role, options) => kit.reader.open(role, options);
+  kit.tocItem = (index) => kit.reader.goToContentsItem(index, { settle: 0 });
+  kit.pagesReady = (timeout) => kit.reader.pagesReady(timeout);
+  kit.location = () => kit.reader.location();
+  return kit;
 }
 
-module.exports = { createKit, LANG };
+module.exports = { createKit, LANG, ROOT };

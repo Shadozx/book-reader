@@ -189,7 +189,7 @@ book-reader/
    ├─ make-icon.js         icon drawing
    ├─ run-tests.js         npm test: runs the scenarios and prints a summary
    ├─ autotest.js          runs one scenario in the app (window, screenshots, results)
-   ├─ test-kit.js          helpers shared by the scenarios
+   ├─ test-kit/            helpers for the scenarios, one file per topic
    ├─ test-books.json      the books the tests use, by role
    ├─ make-fixtures.js     npm run fixtures: generates the test books
    ├─ fixtures/            generated test books
@@ -236,21 +236,36 @@ Some older scenarios still open the books in `samples/` directly; they are being
 
 ### Writing scenarios
 
-A scenario is a module exporting `async (ctx) => { … }`. Besides `exec` (runs code in the window),
-`waitFor`, `wait`, `shot` and `resize`, `ctx` has the helpers from `tools/test-kit.js`:
-`check(name, ok, detail)`, `skip(reason)`, `open(role)`, `has(role)`, `t(key, params)`, `press(key, modifiers)`,
-`tocItem(index)`, `pagesReady()`, `location()` and `facts`.
-
-To check what survives a restart, a scenario exports an array of steps instead of one function.
-After each step the window is closed the way a user closes it (the app saves its state and quits),
-and the next step starts the app again on the same data:
+A scenario reads as a list of small named steps made of user actions and checks:
 
 ```js
 module.exports = [
-  async ({ open, press, check }) => { /* first run: add a bookmark */ },
-  async ({ exec, check }) => { /* after a restart: is it still there? */ },
+  // First run
+  async ({ step, reader, bookmarks, check }) => {
+    await step('Ctrl+D adds a bookmark here', async () => {
+      await reader.open('fb2');
+      await reader.goToContentsItem(8);
+      await bookmarks.toggle();
+      check('one bookmark', (await bookmarks.count()) === 1);
+    });
+  },
+  // After a restart: the window was closed the way a user closes it, and the app started again
+  async ({ step, bookmarks, check }) => { … },
 ];
+module.exports.title = 'Bookmarks in a text book and in a PDF, and after a restart';
 ```
+
+The helpers live in `tools/test-kit/`, one file per topic, each listing its functions at the top:
+`reader` (open a book, position, contents, pages, mode), `sidePanel`, `bookmarks`,
+`readingSettings` and `appPanel`. The code that runs inside the window stays in these helpers,
+so a change in the app's markup is fixed in one place. Every action writes itself to the log
+(`→ press Ctrl+D`), and `npm test` prints each step with its actions and checks.
+A step that throws counts as one failed check; the rest of the scenario still runs.
+
+The core helpers (`tools/test-kit/index.js`) are `step(name, fn)`, `check(name, ok, detail)`,
+`skip(reason)`, `act(text)`, `book(role)`, `has(role)`, `facts`, `t(key, params)` and `press(key, modifiers)`;
+`exec` runs code in the window, `waitFor`, `wait`, `shot` and `resize` are there too.
+Exporting an array of steps makes the app close and start again between them (restart checks).
 
 Every scenario starts with no saved data, so scenarios don't depend on each other and run in any order.
 `module.exports.packaged = true` tests the built app (`npm run dist` first).

@@ -8,6 +8,7 @@
 // A scenario made of several steps (an exported array) is run step by step: the app is closed
 // after each step and started again on the same data, so a single scenario checks a restart.
 // A scenario with packaged = true tests the built app (npm run dist) and is skipped without a build.
+// Its title (module.exports.title) is shown next to its name; steps, actions and checks are listed under it.
 
 const path = require('node:path');
 const fs = require('node:fs');
@@ -34,6 +35,7 @@ const scenarios = fs.readdirSync(SCENARIO_DIR)
       file: path.join(SCENARIO_DIR, f),
       steps: Array.isArray(scenario) ? scenario.length : 1,
       packaged: scenario.packaged,
+      title: scenario.title,
     };
   });
 
@@ -64,7 +66,8 @@ function runStep(scenario, step, outDir, log) {
         const text = line.replace(/^\[autotest\] /, '');
         const m = text.match(/^RESULT (\d+)\/(\d+) passed(?:, (\d+) skipped)?/);
         if (m) Object.assign(result, { passed: Number(m[1]), total: Number(m[2]), skipped: Number(m[3] ?? 0) });
-        else if (/^(OK |FAIL|SKIP|SCENARIO ERROR|APP LOAD ERROR|TIMEOUT|RENDERER CRASH)/.test(text)) console.log('   ' + text);
+        else if (text.startsWith('STEP ')) console.log('  ' + text.slice(5));
+        else if (/^(→|OK |FAIL|SKIP|SCENARIO ERROR|APP LOAD ERROR|TIMEOUT|RENDERER CRASH)/.test(text)) console.log('     ' + text);
       }
     };
     child.stdout.on('data', onData);
@@ -88,7 +91,7 @@ async function run(scenario) {
   const start = Date.now();
   const total = { ok: true, passed: 0, total: 0, skipped: 0 };
   for (let step = 0; step < scenario.steps; step++) {
-    if (step > 0) console.log('   — restart —');
+    if (step > 0) console.log('  — the app is closed and started again —');
     const r = await runStep(scenario, step, outDir, log);
     total.ok &&= r.ok;
     total.passed += r.passed;
@@ -107,7 +110,7 @@ async function main() {
       summary.push({ name: scenario.name, status: 'skipped' });
       continue;
     }
-    console.log(`\n▸ ${scenario.name}`);
+    console.log(`\n▸ ${scenario.name}${scenario.title ? ` — ${scenario.title}` : ''}`);
     const r = await run(scenario);
     const counts = `${r.passed}/${r.total}${r.skipped ? ` (+${r.skipped} skipped)` : ''}`;
     summary.push({ name: scenario.name, status: r.ok ? 'passed' : 'FAILED', counts, seconds: r.seconds });
