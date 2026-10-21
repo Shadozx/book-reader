@@ -292,6 +292,7 @@ npx electron tools/autotest.js tools/scenarios/epub.scenario.js test-results/epu
 | `highlights-basic`, `highlights-epub` | highlighting with a real mouse drag, changing the colour, copying, deleting, Esc; the same in EPUB |
 | `highlights-restart` | highlights in different colours after the app is closed and started again |
 | `highlights-overlap` | a highlight over part of another one is painted on top and gets the clicks; deleting it shows the one under it again |
+| `highlights-layout` | a highlight stays on its words, visible and clickable, after a bigger font, wider line spacing, pages side by side, a narrow window, turning pages and scrolling again |
 | `reading-time` | time to the end of the chapter, reading speed adaptation |
 | `close-tabs` | closing tabs of every format (close button, middle button, Ctrl+W) with real mouse clicks |
 | `data` | the app panel, reset settings, clear history, "Reset everything", the uninstall button in the dev version |

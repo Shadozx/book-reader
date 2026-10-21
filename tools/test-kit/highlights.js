@@ -8,6 +8,7 @@
 //   painted()                  what is painted: [{ id, color, text, shown, painted }]
 //                              (shown: the visible pieces, not covered by later highlights; painted: really in the colour layer)
 //   clickOn(text, at)          clicks the highlight with this text: the middle of its first line, or at: 'start'
+//   isOnScreen(text)           whether the first line of the highlight with this text is inside the reading area
 //   popup.isShown(), popup.markedColor(), popup.hasDelete()
 //   popup.choose(color), popup.copy(), popup.delete()
 
@@ -64,6 +65,14 @@ module.exports = ({ exec, wait, act, click, drag }) => {
       const x = at === 'start' ? mark.rect.x + 4 : mark.rect.x + mark.rect.width / 2;
       await click(Math.round(x), Math.round(mark.rect.y + mark.rect.height / 2));
       await wait(150);
+    },
+
+    async isOnScreen(text) {
+      const mark = (await highlights.painted()).find((m) => m.text === text);
+      if (!mark || !mark.rect.width) return false;
+      const box = await exec(`(() => { const r = app.activeTab.paneEl.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom }; })()`);
+      const r = mark.rect;
+      return r.x >= box.left && r.y >= box.top && r.x + r.width <= box.right && r.y + r.height <= box.bottom;
     },
 
     popup: {
