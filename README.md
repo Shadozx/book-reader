@@ -285,6 +285,7 @@ npx electron tools/autotest.js tools/scenarios/epub.scenario.js test-results/epu
 | `reading-settings` | the reading settings panel and the font size hotkeys |
 | `resize` | text and images fit windows of different sizes |
 | `search`, `bookmarks`, `chapter`, `toc-jump` | search, bookmarks (also after a restart), current chapter, jumping through the contents |
+| `highlights-anchors` | finding a highlight again after the book text changed (moved, duplicated, edited, deleted) |
 | `reading-time` | time to the end of the chapter, reading speed adaptation |
 | `close-tabs` | closing tabs of every format (close button, middle button, Ctrl+W) with real mouse clicks |
 | `data` | the app panel, reset settings, clear history, "Reset everything", the uninstall button in the dev version |
