@@ -1,7 +1,10 @@
 'use strict';
-// Autotest: electron tools/autotest.js <scenario.js> <output folder>   (npm test runs them all)
-// A scenario is a module exporting async (ctx) => { ... }; ctx holds the basic helpers below
-// plus the shared ones from tools/test-kit.js. The process exits with code 1 if a check fails.
+// Autotest: electron tools/autotest.js <scenario.js> <output folder> [--step=N]   (npm test runs them all)
+// A scenario is a module exporting async (ctx) => { ... }, or an array of such steps: between steps
+// the app is closed and started again on the same data, like a user restarting it. This process runs
+// one step (the first by default, --step=N for the others; npm test runs them all in order).
+// ctx holds the basic helpers below plus the shared ones from tools/test-kit.js.
+// The window is closed the way a user closes it; the exit code is 1 if a check failed.
 
 const { app, BrowserWindow } = require('electron');
 const path = require('node:path');
@@ -11,11 +14,11 @@ const { createKit, LANG } = require('./test-kit');
 const [scenarioArg, outArg] = process.argv.slice(2).filter((a) => !a.startsWith('-') && a !== '.');
 const scenarioPath = path.resolve(scenarioArg);
 const outDir = path.resolve(outArg);
+const step = Number(process.argv.find((a) => a.startsWith('--step='))?.slice(7) ?? 0);
 fs.mkdirSync(outDir, { recursive: true });
 
-if (!process.env.AUTOTEST_KEEP_STATE) {
-  fs.rmSync(path.join(outDir, 'userdata'), { recursive: true, force: true });
-}
+// The first step starts with no saved data; later steps continue with what the previous one saved
+if (step === 0) fs.rmSync(path.join(outDir, 'userdata'), { recursive: true, force: true });
 app.setPath('userData', path.join(outDir, 'userdata'));
 process.env.AUTOTEST_AUTOCONFIRM ??= '1';
 process.env.CHYTALKA_BACKUP_DIR ??= path.join(outDir, 'backups');
@@ -91,10 +94,13 @@ app.whenReady().then(async () => {
   const kit = createKit(ctx);
   Object.assign(ctx, kit);
 
+  const scenario = require(scenarioPath);
+  const steps = Array.isArray(scenario) ? scenario : [scenario];
   let crashed = false;
   try {
+    if (!steps[step]) throw new Error(`The scenario has no step ${step}`);
     await wait(300);
-    await require(scenarioPath)(ctx);
+    await steps[step](ctx);
   } catch (err) {
     log('SCENARIO ERROR', err);
     crashed = true;
@@ -102,6 +108,14 @@ app.whenReady().then(async () => {
   const passed = kit.results.filter((r) => r.ok).length;
   const skipped = kit.skipped.length ? `, ${kit.skipped.length} skipped` : '';
   if (kit.results.length || kit.skipped.length) log(`RESULT ${passed}/${kit.results.length} passed${skipped}`);
-  await wait(600); // let the state saving finish
-  app.exit(crashed || passed < kit.results.length ? 1 : 0);
+
+  // Close the window like a user does: the app saves its state and quits on its own.
+  // The exit code is set once it's quitting, after a moment for the last writes to finish.
+  const code = crashed || passed < kit.results.length ? 1 : 0;
+  app.once('will-quit', (e) => {
+    e.preventDefault();
+    setTimeout(() => app.exit(code), 600);
+  });
+  await wait(300);
+  win.close();
 });

@@ -1,54 +1,56 @@
-// Bookmarks: Ctrl+D adds/removes, the list in the side panel, navigation by click
-// This scenario is followed by bookmarks-restore.scenario.js (AUTOTEST_KEEP_STATE=1)
-const path = require('node:path');
+// Bookmarks: none at first, Ctrl+D adds one, it's in the side panel and leads back to its place,
+// a second Ctrl+D removes it; PDF bookmarks are named by page; bookmarks survive a restart.
 
-module.exports = async ({ root, exec, waitFor, shot, wait, log }) => {
-  const results = [];
-  const check = (name, ok, detail = '') => {
-    results.push(!!ok);
-    log(`${ok ? 'OK  ' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`);
-  };
-  const ctrlD = () => exec(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD', ctrlKey: true, bubbles: true }))`);
-  const loc = () => exec(`JSON.stringify(app.activeTab.viewer.getLocation())`);
-  const count = () => exec(`(app.activeTab.record.bookmarks ?? []).length`);
+module.exports = [
+  async ({ open, exec, wait, check, press, tocItem, location, t, shot }) => {
+    const count = () => exec(`(app.activeTab.record.bookmarks ?? []).length`);
+    const highlighted = () => exec(`document.getElementById('btn-bookmark').classList.contains('active')`);
+    const listed = () => exec(`document.querySelectorAll('#bookmark-list .bookmark-item').length`);
 
-  // FB2
-  await exec(`app.updateSettings({ mode: 'scroll' })`);
-  await exec(`app.openBook(${JSON.stringify(path.join(root, 'samples', 'Diuna.fb2'))})`);
-  await waitFor(`app.activeTab.viewer`, 30000);
-  await exec(`document.getElementById('btn-toc').click()`);
-  await exec(`app.showSidePanel('toc')`);
-  await exec(`document.querySelectorAll('.toc-item')[8].click()`);
-  await wait(700);
-  const markLoc = await loc();
-  await ctrlD();
-  check('Ctrl+D додає закладку', (await count()) === 1);
-  check('кнопка закладки підсвічена', await exec(`document.getElementById('btn-bookmark').classList.contains('active')`));
-  check('підпис закладки — розділ і початок абзацу', await exec(`(() => { const b = app.activeTab.record.bookmarks[0]; return b.chapter.length > 0 && b.text.length > 10; })()`));
+    await exec(`app.updateSettings({ mode: 'scroll' })`);
+    await open('fb2');
+    check('a new book has no bookmarks', (await count()) === 0 && !(await highlighted()));
 
-  await exec(`document.querySelectorAll('.toc-item')[20].click()`);
-  await wait(600);
-  check('в іншому місці кнопка не підсвічена', !(await exec(`document.getElementById('btn-bookmark').classList.contains('active')`)));
-  await exec(`app.showSidePanel('bookmarks')`);
-  check('закладка в списку бокової панелі', (await exec(`document.querySelectorAll('#bookmark-list .bookmark-item').length`)) === 1);
-  await shot('bm-01-panel');
-  await exec(`document.querySelector('#bookmark-list .bookmark-item').click()`);
-  await wait(700);
-  const backLoc = await loc();
-  check('клік по закладці повертає на те саме місце', JSON.parse(backLoc).c === JSON.parse(markLoc).c && JSON.parse(backLoc).b === JSON.parse(markLoc).b, `${markLoc} → ${backLoc}`);
-  await ctrlD();
-  check('повторний Ctrl+D на тому ж місці прибирає закладку', (await count()) === 0);
-  await ctrlD();   // keep a bookmark to check after the restart
+    await tocItem(8);
+    await wait(700);
+    const marked = await location();
+    await press('d', { ctrl: true });
+    check('Ctrl+D adds a bookmark', (await count()) === 1);
+    check('the bookmark button lights up', await highlighted());
+    check('the bookmark is labelled with its chapter and text', await exec(`(() => { const b = app.activeTab.record.bookmarks[0]; return b.chapter.length > 0 && b.text.length > 10; })()`));
 
-  // PDF
-  await exec(`app.openBook(${JSON.stringify(path.join(root, 'samples', 'Allan_and_Barbara_Pease_-_Body_Language_The_Definitive_Book.pdf'))})`);
-  await waitFor(`app.activeTab.viewer`, 30000);
-  await exec(`app.activeTab.viewer.goTo({ page: 50, f: 0 })`);
-  await wait(500);
-  await exec(`document.getElementById('btn-bookmark').click()`);
-  check('закладка в PDF', await exec(`app.activeTab.record.bookmarks?.[0]?.text === 'Сторінка 51'`), await exec(`app.activeTab.record.bookmarks?.[0]?.text`));
-  check('панель без змісту відкривається на закладках', await exec(`(() => { document.getElementById('toc-panel').hidden = true; document.getElementById('btn-toc').click(); return !document.getElementById('bookmark-list').hidden; })()`));
-  await shot('bm-02-pdf');
+    await tocItem(20);
+    await wait(600);
+    check('elsewhere the button is not lit', !(await highlighted()));
+    await exec(`app.showSidePanel('bookmarks')`);
+    check('the bookmark is listed in the side panel', (await listed()) === 1);
+    await shot('bookmarks-01-panel');
 
-  log(`RESULT ${results.filter(Boolean).length}/${results.length} passed`);
-};
+    await exec(`document.querySelector('#bookmark-list .bookmark-item').click()`);
+    await wait(700);
+    const back = await location();
+    check('a click on the bookmark returns to its place', back.c === marked.c && back.b === marked.b, `${JSON.stringify(marked)} → ${JSON.stringify(back)}`);
+
+    await press('d', { ctrl: true });
+    check('Ctrl+D on the same place removes the bookmark', (await count()) === 0 && (await listed()) === 0 && !(await highlighted()));
+    await press('d', { ctrl: true });   // one bookmark stays for the restart check
+
+    // PDF: named by page; a book without contents opens the side panel on bookmarks
+    await open('pdf');
+    const page = Math.floor((await exec(`app.activeTab.viewer.pageCount`)) / 2);
+    await exec(`app.activeTab.viewer.goTo({ page: ${page}, f: 0 })`);
+    await wait(500);
+    await exec(`document.getElementById('btn-bookmark').click()`);
+    const label = await exec(`app.activeTab.record.bookmarks?.[0]?.text`);
+    check('a PDF bookmark is named by its page', label === t('bookmark.page', { n: page + 1 }), label);
+    check('without contents the side panel opens on bookmarks', await exec(`(() => { document.getElementById('toc-panel').hidden = true; document.getElementById('btn-toc').click(); return !document.getElementById('bookmark-list').hidden; })()`));
+    await shot('bookmarks-02-pdf');
+  },
+
+  // After a restart
+  async ({ exec, waitFor, check }) => {
+    await waitFor(`app.tabs.length === 2 && app.tabs.every((t) => t.viewer)`, 60000);
+    const counts = await exec(`app.tabs.map((t) => t.format + ':' + (t.record.bookmarks ?? []).length).join()`);
+    check('after a restart: both bookmarks are still there', counts === 'fb2:1,pdf:1', counts);
+  },
+];

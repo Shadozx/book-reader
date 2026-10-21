@@ -241,9 +241,20 @@ A scenario is a module exporting `async (ctx) => { … }`. Besides `exec` (runs 
 `check(name, ok, detail)`, `skip(reason)`, `open(role)`, `has(role)`, `t(key, params)`, `press(key, modifiers)`,
 `tocItem(index)`, `pagesReady()`, `location()` and `facts`.
 
-`module.exports.continues = 'name'` makes a scenario run right after another one on the state it saved
-(restart checks); `module.exports.packaged = true` tests the built app (`npm run dist` first).
-A single scenario can also be started directly:
+To check what survives a restart, a scenario exports an array of steps instead of one function.
+After each step the window is closed the way a user closes it (the app saves its state and quits),
+and the next step starts the app again on the same data:
+
+```js
+module.exports = [
+  async ({ open, press, check }) => { /* first run: add a bookmark */ },
+  async ({ exec, check }) => { /* after a restart: is it still there? */ },
+];
+```
+
+Every scenario starts with no saved data, so scenarios don't depend on each other and run in any order.
+`module.exports.packaged = true` tests the built app (`npm run dist` first).
+A single scenario can also be started directly (its first step; `--step=N` runs another one):
 
 ```bash
 npx electron tools/autotest.js tools/scenarios/epub.scenario.js test-results/epub
@@ -251,14 +262,14 @@ npx electron tools/autotest.js tools/scenarios/epub.scenario.js test-results/epu
 
 | Scenario | What it checks |
 |---|---|
-| `tabs-themes` (+ `-restore`) | a tab for every format, themes; tabs, active tab and theme after a restart |
+| `tabs-themes` | a tab for every format, themes; tabs, active tab and theme after a restart |
 | `fb2`, `fb2-edge` | FB2: parsing, images, contents, footnotes; damaged files, windows-1251, `.fb2.zip` |
 | `epub`, `formatting` | EPUB 2 and 3: parsing, contents, footnotes, unsafe markup; italic, bold, links |
 | `pdf-djvu`, `djvu-quick`, `dark-pages` | PDF and DjVu: drawing, contents, text layer, spreads, zoom, speed, dark theme |
-| `reading-modes` (+ `-restore`) | scroll and paged modes, keeping the position across mode, window and font changes and a restart |
+| `reading-modes` | scroll and paged modes, keeping the position across mode, window and font changes and a restart |
 | `reading-settings` | the reading settings panel and the font size hotkeys |
 | `resize` | text and images fit windows of different sizes |
-| `search`, `bookmarks` (+ `-restore`), `chapter`, `toc-jump` | search, bookmarks, current chapter, jumping through the contents |
+| `search`, `bookmarks`, `chapter`, `toc-jump` | search, bookmarks (also after a restart), current chapter, jumping through the contents |
 | `reading-time` | time to the end of the chapter, reading speed adaptation |
 | `close-tabs` | closing tabs of every format (close button, middle button, Ctrl+W) with real mouse clicks |
 | `data` | the app panel, reset settings, clear history, "Reset everything", the uninstall button in the dev version |

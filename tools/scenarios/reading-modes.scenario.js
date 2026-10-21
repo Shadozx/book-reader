@@ -1,7 +1,7 @@
 // Scroll and paged modes for FB2/EPUB: page turning, and the reading position surviving
-// mode switches, window resizes and font changes. reading-modes-restore continues this run.
+// mode switches, window resizes, font changes and a restart.
 
-module.exports = async ({ open, exec, wait, check, press, tocItem, location, resize, shot, log }) => {
+module.exports = [async ({ open, exec, wait, check, press, tocItem, location, resize, shot, log }) => {
   // The same place: same part of the book, a couple of paragraphs apart at most
   const near = (a, b) => a.c === b.c && Math.abs(a.b - b.b) <= 2;
   const settle = () => wait(600);
@@ -68,4 +68,14 @@ module.exports = async ({ open, exec, wait, check, press, tocItem, location, res
   })()`);
   if (note === null) log('no footnote on this page, popup in paged mode not checked');
   else check('a footnote opens in paged mode', note);
-};
+},
+
+// After a restart
+async ({ exec, waitFor, wait, check, shot }) => {
+  await waitFor(`app.activeTab?.viewer`, 60000);
+  await wait(500);
+  const state = await exec(`({ mode: app.store.settings.mode, now: app.activeTab.viewer.getLocation(), saved: app.activeTab.record.location })`);
+  check('after a restart: paged mode is still on', state.mode === 'paged');
+  check('after a restart: the book opens where reading stopped', state.now.c === state.saved.c && Math.abs(state.now.b - state.saved.b) <= 2, `${JSON.stringify(state.saved)} → ${JSON.stringify(state.now)}`);
+  await shot('modes-05-restarted');
+}];

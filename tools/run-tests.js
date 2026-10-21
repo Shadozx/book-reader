@@ -1,13 +1,13 @@
 'use strict';
 // Runs the autotest scenarios one after another and prints a summary:
 //   npm test                      all scenarios
-//   npm test -- search library    only these (plus the scenarios that continue them)
+//   npm test -- search library    only these
 //   npm test -- --lang en         with the English interface
 // Logs and screenshots go to test-results/<scenario>/. The exit code is 1 if anything failed.
 //
-// Scenario options (properties of the exported function):
-//   continues = 'name'   runs right after that scenario, on the state it saved (a restart check)
-//   packaged = true      tests the built app (npm run dist); skipped if there is no build
+// A scenario made of several steps (an exported array) is run step by step: the app is closed
+// after each step and started again on the same data, so a single scenario checks a restart.
+// A scenario with packaged = true tests the built app (npm run dist) and is skipped without a build.
 
 const path = require('node:path');
 const fs = require('node:fs');
@@ -18,7 +18,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SCENARIO_DIR = path.join(__dirname, 'scenarios');
 const OUT = path.join(ROOT, 'test-results');
 const PACKAGED_APP = path.join(ROOT, 'dist', 'win-unpacked', 'resources', 'app.asar');
-const TIMEOUT = 5 * 60 * 1000;
+const TIMEOUT = 5 * 60 * 1000;   // per step
 
 const args = process.argv.slice(2);
 const langIndex = args.indexOf('--lang');
@@ -28,37 +28,32 @@ const wanted = args.filter((a, i) => !a.startsWith('--') && (langIndex < 0 || i 
 const scenarios = fs.readdirSync(SCENARIO_DIR)
   .filter((f) => f.endsWith('.scenario.js'))
   .map((f) => {
-    const options = require(path.join(SCENARIO_DIR, f));
-    return { name: f.replace('.scenario.js', ''), file: path.join(SCENARIO_DIR, f), continues: options.continues, packaged: options.packaged };
+    const scenario = require(path.join(SCENARIO_DIR, f));
+    return {
+      name: f.replace('.scenario.js', ''),
+      file: path.join(SCENARIO_DIR, f),
+      steps: Array.isArray(scenario) ? scenario.length : 1,
+      packaged: scenario.packaged,
+    };
   });
-const byName = new Map(scenarios.map((s) => [s.name, s]));
 
 for (const name of wanted) {
-  if (!byName.has(name)) {
+  if (!scenarios.some((s) => s.name === name)) {
     console.error(`Unknown scenario "${name}". Available: ${scenarios.map((s) => s.name).join(', ')}`);
     process.exit(2);
   }
 }
+const plan = wanted.length ? scenarios.filter((s) => wanted.includes(s.name)) : scenarios;
 
-// Each main scenario is followed by the ones that continue it
-const roots = scenarios.filter((s) => !s.continues)
-  .filter((s) => !wanted.length || wanted.some((w) => w === s.name || byName.get(w).continues === s.name));
-const plan = roots.flatMap((s) => [s, ...scenarios.filter((c) => c.continues === s.name)]);
-
-function run(scenario) {
-  const outDir = path.join(OUT, scenario.continues ?? scenario.name);
-  if (!scenario.continues) fs.rmSync(outDir, { recursive: true, force: true });
-  fs.mkdirSync(outDir, { recursive: true });
+// One step in its own Electron process; resolves with the exit status and the checks it reported
+function runStep(scenario, step, outDir, log) {
   const env = { ...process.env };
-  if (scenario.continues) env.AUTOTEST_KEEP_STATE = '1';
   if (scenario.packaged) env.AUTOTEST_APP = PACKAGED_APP;
   if (lang) env.CHYTALKA_TEST_LANG = lang;
 
   return new Promise((resolve) => {
-    const start = Date.now();
-    const child = spawn(electron, [path.join(__dirname, 'autotest.js'), scenario.file, outDir], { cwd: ROOT, env });
-    const log = fs.createWriteStream(path.join(outDir, `${scenario.name}.log`));
-    let result = null;
+    const child = spawn(electron, [path.join(__dirname, 'autotest.js'), scenario.file, outDir, `--step=${step}`], { cwd: ROOT, env });
+    const result = { passed: 0, total: 0, skipped: 0 };
     let buffer = '';
     const onData = (data) => {
       log.write(data);
@@ -68,7 +63,7 @@ function run(scenario) {
       for (const line of lines) {
         const text = line.replace(/^\[autotest\] /, '');
         const m = text.match(/^RESULT (\d+)\/(\d+) passed(?:, (\d+) skipped)?/);
-        if (m) result = { passed: Number(m[1]), total: Number(m[2]), skipped: Number(m[3] ?? 0) };
+        if (m) Object.assign(result, { passed: Number(m[1]), total: Number(m[2]), skipped: Number(m[3] ?? 0) });
         else if (/^(OK |FAIL|SKIP|SCENARIO ERROR|APP LOAD ERROR|TIMEOUT|RENDERER CRASH)/.test(text)) console.log('   ' + text);
       }
     };
@@ -80,10 +75,28 @@ function run(scenario) {
     }, TIMEOUT);
     child.on('exit', (code) => {
       clearTimeout(timer);
-      log.end();
-      resolve({ ok: code === 0, result, seconds: Math.round((Date.now() - start) / 1000) });
+      resolve({ ok: code === 0, ...result });
     });
   });
+}
+
+async function run(scenario) {
+  const outDir = path.join(OUT, scenario.name);
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.mkdirSync(outDir, { recursive: true });
+  const log = fs.createWriteStream(path.join(outDir, `${scenario.name}.log`));
+  const start = Date.now();
+  const total = { ok: true, passed: 0, total: 0, skipped: 0 };
+  for (let step = 0; step < scenario.steps; step++) {
+    if (step > 0) console.log('   — restart —');
+    const r = await runStep(scenario, step, outDir, log);
+    total.ok &&= r.ok;
+    total.passed += r.passed;
+    total.total += r.total;
+    total.skipped += r.skipped;
+  }
+  log.end();
+  return { ...total, seconds: Math.round((Date.now() - start) / 1000) };
 }
 
 async function main() {
@@ -96,7 +109,7 @@ async function main() {
     }
     console.log(`\n▸ ${scenario.name}`);
     const r = await run(scenario);
-    const counts = r.result ? `${r.result.passed}/${r.result.total}${r.result.skipped ? ` (+${r.result.skipped} skipped)` : ''}` : '';
+    const counts = `${r.passed}/${r.total}${r.skipped ? ` (+${r.skipped} skipped)` : ''}`;
     summary.push({ name: scenario.name, status: r.ok ? 'passed' : 'FAILED', counts, seconds: r.seconds });
   }
 
