@@ -80,6 +80,10 @@
   "highlight.copy": "Копіювати",
   "highlight.copied": "Скопійовано",
   "highlight.delete": "Видалити виділення",
+  "highlight.bookChanged": "Книга змінилась. Виділення: {list}",
+  "highlight.inPlace": "{n} на місці",
+  "highlight.changedText": "{n} з іншим текстом",
+  "highlight.notFound": "{n} не знайдено",
 
   "toast.font": "Шрифт: {size} px",
   "toast.zoom": "Масштаб: {percent}%",

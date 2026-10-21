@@ -165,7 +165,10 @@ class Tab {
   async load() {
     this.showMessage('loading', t('tab.opening'));
     try {
-      const { data } = await api.readBook(this.path);
+      const { data, size, mtime } = await api.readBook(this.path);
+      // The file is different from the one opened last time (edited or replaced)
+      const fileChanged = !!this.record.file && (this.record.file.size !== size || this.record.file.mtime !== mtime);
+      this.record.file = { size, mtime };
       const bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
       this.format = detectFormat(this.path, bytes);
       this.formatEl.textContent = this.format;
@@ -188,7 +191,7 @@ class Tab {
         if (title) this.record.title = title;
         this.record.author = author || '';
         this.setTitle(this.record.title);
-        showHighlights(this);
+        showHighlights(this, { fileChanged });
       }
     } catch (err) {
       console.error(err);
@@ -845,12 +848,12 @@ function setupWheelZoom() {
 }
 
 let toastTimer = 0;
-function toast(text) {
+function toast(text, ms = 1200) {
   const el = document.getElementById('toast');
   el.textContent = text;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 1200);
+  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
 
 /* ------------------------------------------------------------------
@@ -1145,21 +1148,37 @@ const HIGHLIGHT_COLORS = ['yellow', 'green', 'blue', 'pink'];
 // The popup over a selection (target: { kind: 'new', mark }) or over a saved highlight ({ kind: 'saved', id })
 const markPopup = { el: null, target: null };
 
-// Paints a tab's saved highlights and keeps where they were found (the book file may have changed)
-function showHighlights(tab) {
+// Paints a tab's saved highlights and keeps where they were found (the book file may have changed).
+// Highlights that can't be found are kept, marked lost: they come back if the old text does.
+function showHighlights(tab, { fileChanged = false } = {}) {
   if (!tab.viewer?.setHighlights) return;
   const saved = tab.record.highlights ?? [];
   if (!saved.length) return;
+  const count = { inPlace: 0, changed: 0, lost: 0 };
+  let news = false;
   for (const found of tab.viewer.setHighlights(saved)) {
     const h = saved.find((x) => x.id === found.id);
     if (found.status === 'lost') {
+      count.lost++;
+      if (!h.lost) news = true;
       h.lost = true;
     } else {
+      if (found.status === 'changed') count.changed++;
+      else count.inPlace++;
+      if (found.status !== 'exact') news = true;
       Object.assign(h, { anchor: found.anchor, quote: found.quote, prefix: found.prefix, suffix: found.suffix });
       delete h.lost;
     }
   }
   saveStore();
+  if (fileChanged && news) toast(bookChangedText(count), 6000);
+}
+
+// "The book has changed. Highlights: 2 in place, 1 with changed text, 1 not found"
+function bookChangedText(count) {
+  const keys = { inPlace: 'highlight.inPlace', changed: 'highlight.changedText', lost: 'highlight.notFound' };
+  const list = Object.entries(keys).filter(([k]) => count[k]).map(([k, key]) => t(key, { n: count[k] }));
+  return t('highlight.bookChanged', { list: list.join(', ') });
 }
 
 function buildMarkPopup() {

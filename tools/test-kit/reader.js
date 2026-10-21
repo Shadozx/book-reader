@@ -2,6 +2,7 @@
 // Reading: opening books, the reading position, moving through a book, the reading mode.
 //
 //   open(role)                    opens a test book and waits until it's shown
+//   openFile(file)                the same for any book file (a copy made by the test)
 //   location()                    the reading position: { c, b, f } in FB2/EPUB, { page, f } in PDF/DjVu
 //   samePlace(a, b, slack)        whether two positions are the same place (slack: paragraphs apart)
 //   goToContentsItem(index)       jumps to a table of contents entry, like a click in the side panel
@@ -13,14 +14,19 @@
 
 module.exports = ({ exec, wait, waitFor, act, press, book }) => {
   const reader = {
-    async open(role, { timeout = 60000 } = {}) {
+    async open(role, options) {
       const file = book(role);
       act(`open book "${role}" (${file.split(/[\\/]/).pop()})`);
+      return reader.openFile(file, { ...options, quiet: true });
+    },
+
+    async openFile(file, { timeout = 60000, quiet = false } = {}) {
+      if (!quiet) act(`open the file ${file.split(/[\\/]/).pop()}`);
       await exec(`app.openBook(${JSON.stringify(file)})`);
       const ok = await waitFor(`app.activeTab?.path === ${JSON.stringify(file)} && !!app.activeTab.viewer`, timeout);
       if (!ok) {
         const error = await exec(`app.activeTab?.paneEl.querySelector('.pane-message.error')?.innerText ?? null`);
-        throw new Error(`Could not open the "${role}" book${error ? ': ' + error : ''}`);
+        throw new Error(`Could not open ${file}${error ? ': ' + error : ''}`);
       }
       return file;
     },

@@ -11,8 +11,9 @@
 //   facts                     what the generated books contain (tools/fixtures/facts.json)
 //   t(key, params)            the interface text in the language the tests run in (locales/*.json)
 //   press(key, modifiers)     a key press as the window receives it
+//   toast()                   the last short message at the bottom: { text, shown }
 // By topic (one file each, see their headers):
-//   reader, sidePanel, bookmarks, readingSettings, appPanel, highlights
+//   reader, sidePanel, bookmarks, readingSettings, appPanel, highlights, fb2File
 // Older scenarios also use open(), tocItem(), pagesReady() and location() directly.
 
 const path = require('node:path');
@@ -121,6 +122,7 @@ function createKit(base) {
     has,
     facts: JSON.parse(fs.readFileSync(path.join(FIXTURES, 'facts.json'), 'utf8')),
     press,
+    toast: () => exec(`(() => { const el = document.getElementById('toast'); return { text: el.textContent, shown: el.classList.contains('show') }; })()`),
     results,
     skipped,
   };
@@ -132,6 +134,7 @@ function createKit(base) {
   kit.readingSettings = require('./panels').readingSettings(kit);
   kit.appPanel = require('./panels').appPanel(kit);
   kit.highlights = require('./highlights')(kit);
+  kit.fb2File = require('./fb2-file')(kit);
 
   // Short names the older scenarios use
   kit.open = (role, options) => kit.reader.open(role, options);

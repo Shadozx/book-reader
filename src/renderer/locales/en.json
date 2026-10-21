@@ -80,6 +80,10 @@
   "highlight.copy": "Copy",
   "highlight.copied": "Copied",
   "highlight.delete": "Delete highlight",
+  "highlight.bookChanged": "The book has changed. Highlights: {list}",
+  "highlight.inPlace": "{n} in place",
+  "highlight.changedText": "{n} with changed text",
+  "highlight.notFound": "{n} not found",
 
   "toast.font": "Font: {size} px",
   "toast.zoom": "Zoom: {percent}%",

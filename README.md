@@ -17,7 +17,7 @@ the app is called Chytalka in every interface language.
 - **Reading position** is remembered for every book and survives changes of font, window size or mode.
 - **Current chapter:** below the book title you see which chapter you are in, how much of it you've read and how much time is left until its end; a thin bar under the toolbar shows the chapter progress. The time is based on your reading speed: it starts with a typical one (≈1100 characters per minute or ≈1.4 min per scanned page) and then adapts to you; jumps through the contents, going back and breaks are ignored.
 - **Table of contents**, **bookmarks**, **text search**, **go to** a page or a percentage.
-- **Highlights (FB2/EPUB):** select a phrase with the mouse and pick one of four colours in the popup over it; a click on a highlight changes its colour, copies or deletes it. Highlights are tied to the text, not to the screen, so they stay in place when the font, mode or window size changes, and are found again if the book file is edited.
+- **Highlights (FB2/EPUB):** select a phrase with the mouse and pick one of four colours in the popup over it; a click on a highlight changes its colour, copies or deletes it. Highlights are tied to the text, not to the screen, so they stay in place when the font, mode or window size changes, and are found again if the book file is edited: a message then says how many are in place, changed or not found (those are kept, not deleted).
 - **Footnotes** in FB2/EPUB open in a popup.
 - **Text selection and copying** in PDF and DjVu (if the file has a text layer).
 
@@ -293,6 +293,7 @@ npx electron tools/autotest.js tools/scenarios/epub.scenario.js test-results/epu
 | `highlights-restart` | highlights in different colours after the app is closed and started again |
 | `highlights-overlap` | a highlight over part of another one is painted on top and gets the clicks; deleting it shows the one under it again |
 | `highlights-layout` | a highlight stays on its words, visible and clickable, after a bigger font, wider line spacing, pages side by side, a narrow window, turning pages and scrolling again |
+| `highlights-changed-book` | the book file is edited while the app is closed (a paragraph and a chapter added, a word changed, a paragraph deleted): a message counts what was found, the highlights stay on their words, the lost one is kept |
 | `reading-time` | time to the end of the chapter, reading speed adaptation |
 | `close-tabs` | closing tabs of every format (close button, middle button, Ctrl+W) with real mouse clicks |
 | `data` | the app panel, reset settings, clear history, "Reset everything", the uninstall button in the dev version |

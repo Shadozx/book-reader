@@ -70,6 +70,7 @@ app.whenReady().then(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const ctx = {
     root: path.resolve(__dirname, '..'),
+    outDir,
     wait,
     // A result that can't be passed between processes (DOM, tabs) is replaced with null
     exec: (js) => wc.executeJavaScript(`(async () => { const r = await (${js}); try { return structuredClone(r); } catch { return null; } })()`, true),
